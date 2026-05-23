@@ -26,6 +26,7 @@ set(SOURCES
     src/modbus/ModbusServer.cpp
     src/tui/PlcTui.cpp
     src/s7/S7Server.cpp
+    src/mc/McServer.cpp
 )
 
 # Executable
