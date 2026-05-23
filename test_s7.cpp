@@ -67,12 +67,12 @@ int main() {
     uint16_t val1 = (static_cast<uint16_t>(buffer[2]) << 8) | buffer[3];
     uint16_t val2 = (static_cast<uint16_t>(buffer[4]) << 8) | buffer[5];
 
-    std::cout << "  -> DB1.DBW0 (%MW0 - Counter)  : " << val0 << " (Expected: >= 100)" << std::endl;
-    std::cout << "  -> DB1.DBW2 (%MW1 - Math Out) : " << val1 << " (Expected: ~300)" << std::endl;
-    std::cout << "  -> DB1.DBW4 (%MW2 - Unbound)  : " << val2 << " (Expected: 0)" << std::endl;
+    std::cout << "  -> DB1.DBW0 (%MW0 - Pump Starts) : " << val0 << " (Expected: >= 0)" << std::endl;
+    std::cout << "  -> DB1.DBW2 (%MW1 - Set Point)   : " << val1 << " (Expected: 500)" << std::endl;
+    std::cout << "  -> DB1.DBW4 (%MW2 - Unbound)     : " << val2 << " (Expected: 0)" << std::endl;
 
-    assert(val0 >= 100);
-    assert(val1 % 2 == 0); // Math out is a multiplication of 2, so it must be even!
+    assert(val0 >= 0);
+    assert(val1 == 500);
     std::cout << "  [SUCCESS] Test 1 Passed." << std::endl;
 
     // --- TEST 2: Write DB1.DBW0 (%MW0) to 750 ---

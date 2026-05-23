@@ -56,12 +56,12 @@ def test_vplc():
         val2 = (resp[13] << 8) | resp[14]
         print(f"  -> Function Code: {fc}")
         print(f"  -> Byte Count: {byte_count}")
-        print(f"  -> Reg 0 (%MW0 - Counter): {val0} (Expected: >= 100)")
-        print(f"  -> Reg 1 (%MW1 - Math Out): {val1} (Expected: {iw0 * 2})")
+        print(f"  -> Reg 0 (%MW0 - Pump Starts): {val0} (Expected: >= 0)")
+        print(f"  -> Reg 1 (%MW1 - Set Point): {val1} (Expected: 500)")
         print(f"  -> Reg 2 (%MW2 - Unbound): {val2} (Expected: 0)")
         
-        assert val0 >= 100, f"Test 1 Error: Reg 0 ({val0}) should be >= 100"
-        assert val1 == iw0 * 2, f"Test 1 Error: Reg 1 ({val1}) should be double %IW0 ({iw0 * 2})"
+        assert val0 >= 0, f"Test 1 Error: Reg 0 ({val0}) should be >= 0"
+        assert val1 == 500, f"Test 1 Error: Reg 1 ({val1}) should be 500"
         print("  [SUCCESS] Test 1 Passed.")
     else:
         print("  [FAILURE] Short response received for Test 1.")
