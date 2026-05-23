@@ -26,6 +26,7 @@ vPlc/
 ├── README.md                   # 본 설명서 파일
 ├── libmock_logic.dylib         # 컴파일된 모의 PLC 로직 라이브러리
 ├── test_modbus.py              # 로우 소켓 기반 독립형 프로토콜 검증 테스트
+├── test_s7.cpp                 # Snap7 C API 기반 S7 프로토콜 검증 테스트
 └── src/
     ├── main.cpp                # 프로그램 진입 엔트리포인트 및 초기화
     ├── core/
@@ -34,6 +35,8 @@ vPlc/
     │   └── PlcScheduler.hpp/cpp# 고정밀 타임 스캔 주기 구동 및 통계 기록 엔진
     ├── modbus/
     │   └── ModbusServer.hpp/cpp# 멀티스레드 Modbus TCP 서버 엔진
+    ├── s7/
+    │   └── S7Server.hpp/cpp    # Siemens S7 TCP 서버 엔진 (Snap7 기반)
     ├── tui/
     │   └── PlcTui.hpp/cpp      # termios 로우 모드 ANSI 터미널 UI 제어 엔진
     └── logic/
@@ -46,9 +49,10 @@ vPlc/
 
 시스템에 설치된 C++17 이상 규격의 C++ 컴파일러(Apple Clang / GCC)를 통해 직접 컴파일 및 링크를 수행합니다.
 
-### 1. 가상 PLC 메인 런타임 컴파일
+### 1. 가상 PLC 메인 런타임 컴파일 (Snap7 링크 포함)
 ```bash
-clang++ -std=c++17 -O3 -pthread src/main.cpp src/core/PlcMemory.cpp src/core/PlcLoader.cpp src/core/PlcScheduler.cpp src/modbus/ModbusServer.cpp src/tui/PlcTui.cpp -o vPlc -Isrc
+# macOS (Snap7 Homebrew 연동)
+clang++ -std=c++17 -O3 -pthread src/main.cpp src/core/PlcMemory.cpp src/core/PlcLoader.cpp src/core/PlcScheduler.cpp src/modbus/ModbusServer.cpp src/tui/PlcTui.cpp src/s7/S7Server.cpp -o vPlc -Isrc -I/opt/homebrew/include -L/opt/homebrew/lib -lsnap7
 ```
 
 ### 2. 모의 PLC 로직 공유 라이브러리 컴파일
@@ -60,6 +64,11 @@ clang++ -std=c++17 -O3 -pthread src/main.cpp src/core/PlcMemory.cpp src/core/Plc
     ```bash
     g++ -std=c++17 -O3 -shared -fPIC src/logic/mock_logic.cpp -o libmock_logic.so
     ```
+
+### 3. Siemens S7 테스트 클라이언트 컴파일
+```bash
+clang++ -std=c++17 test_s7.cpp -o test_s7 -I/opt/homebrew/include -L/opt/homebrew/lib -lsnap7
+```
 
 ---
 
@@ -95,7 +104,7 @@ clang++ -std=c++17 -O3 -pthread src/main.cpp src/core/PlcMemory.cpp src/core/Plc
 
 ## 🧪 Modbus TCP 통신 검증 테스트 (Modbus Test)
 
-가상 PLC 런타임은 외부 SCADA/HMI나 분산 제어용 소켓 통신을 위해 기본 포트 **`5020`**번(root 권한 우회용)으로 통신을 열어 둡니다.
+가상 PLC 런타임은 외부 SCADA/HMI나 분산 제어용 소켓 통신을 위해 기본 포트 **`5020`**번으로 통신을 열어 둡니다.
 
 가상 PLC TUI 화면이 구동 중인 상태에서 **다른 터미널 창을 열고** 테스트 클라이언트 스크립트를 기동합니다:
 ```bash
@@ -108,6 +117,22 @@ python3 test_modbus.py
 3.  **Test 2/3**: `FC 06` 단일 레지스터 강제 쓰기 및 데이터 보존성 검증.
 4.  **Test 4**: `FC 01`로 현재 구동 코일 현황 감지.
 5.  **Test 5/6**: `FC 0F`로 여러 코일 일괄 강제 쓰기 및 로직 오버라이트 차단성(로직 미맵핑 코일의 독립 저장 상태 유지) 최종 무인 판정.
+
+---
+
+## 🇩🇪 Siemens S7 통신 검증 테스트 (S7 Test)
+
+가상 PLC 런타임은 시멘스 HMI/SCADA 연동을 위한 S7 서버를 우회 포트 **`1020`**번으로 구동합니다.
+
+가상 PLC TUI 화면이 구동 중인 상태에서 **다른 터미널 창을 열고** 빌드된 S7 테스트 클라이언트를 구동합니다:
+```bash
+./test_s7
+```
+
+### 검증 자동화 시나리오:
+1.  **Test 1**: `DB1` 영역 읽기 -> 카운터 값 활성화(`>=100`) 및 실시간 C++ logic 스레드 간의 양방향 핫싱크 연산(`DB1.DBW2 == %IW0 * 2`) 정합성 판정.
+2.  **Test 2**: `DB1.DBW0` (Counter 레지스터 %MW0)에 외부 HMI 제어를 모사하여 `750` 원격 강제 기입.
+3.  **Test 3**: PLC 연산 주기를 거친 뒤, 다시 읽어온 `DB1.DBW0`의 값이 오버라이트 문제 없이 `750` 이상으로 유지되는지 최종 물리 검증.
 
 ---
 

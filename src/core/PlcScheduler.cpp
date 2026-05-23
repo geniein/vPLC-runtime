@@ -44,6 +44,7 @@ void PlcScheduler::loop() {
 
     // Run custom initialization before loop starts
     loader_.initLogic();
+    loader_.syncOutputsFromDll();
 
     while (is_running_) {
         // Record cycle start time

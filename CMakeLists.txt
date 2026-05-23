@@ -11,7 +11,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 endif()
 
 # Directories
-include_directories(src)
+include_directories(src /opt/homebrew/include)
+link_directories(/opt/homebrew/lib)
 
 # Threading support
 find_package(Threads REQUIRED)
@@ -24,8 +25,9 @@ set(SOURCES
     src/core/PlcScheduler.cpp
     src/modbus/ModbusServer.cpp
     src/tui/PlcTui.cpp
+    src/s7/S7Server.cpp
 )
 
 # Executable
 add_executable(vPlc ${SOURCES})
-target_link_libraries(vPlc PRIVATE Threads::Threads)
+target_link_libraries(vPlc PRIVATE Threads::Threads snap7)

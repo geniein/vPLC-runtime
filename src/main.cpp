@@ -2,6 +2,7 @@
 #include "core/PlcLoader.hpp"
 #include "core/PlcScheduler.hpp"
 #include "modbus/ModbusServer.hpp"
+#include "s7/S7Server.hpp"
 #include "tui/PlcTui.hpp"
 #include <iostream>
 #include <chrono>
@@ -43,9 +44,13 @@ int main(int argc, char* argv[]) {
     double target_cycle_ms = 20.0;
     PlcScheduler plc_scheduler(plc_loader, target_cycle_ms);
 
-    // 4. Initialize Modbus TCP Server (Port 5020 to avoid root privilege issues)
+    // 4. Initialize Modbus TCP Server (Port 5020)
     uint16_t port = 5020;
     ModbusServer modbus_server(plc_memory, "0.0.0.0", port);
+
+    // 4b. Initialize Siemens S7 Server (Port 1020)
+    uint16_t s7_port = 1020;
+    S7Server s7_server(plc_memory, "0.0.0.0", s7_port);
 
     // Set initial test values to verify memory loading
     plc_memory.writeDiscreteInput(0, false);
@@ -57,17 +62,25 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (!s7_server.start()) {
+        std::cerr << "[vPlc] Failed to start Siemens S7 Server." << std::endl;
+        modbus_server.stop();
+        return 1;
+    }
+
     if (!plc_scheduler.start()) {
         std::cerr << "[vPlc] Failed to start PLC Cyclic Scheduler." << std::endl;
+        s7_server.stop();
         modbus_server.stop();
         return 1;
     }
 
     // 6. Start Terminal User Interface (TUI) Dashboard
-    PlcTui plc_tui(plc_memory, plc_scheduler, modbus_server);
+    PlcTui plc_tui(plc_memory, plc_scheduler, modbus_server, s7_server);
     if (!plc_tui.start()) {
         std::cerr << "[vPlc] Failed to start TUI Dashboard." << std::endl;
         plc_scheduler.stop();
+        s7_server.stop();
         modbus_server.stop();
         return 1;
     }
@@ -81,9 +94,12 @@ int main(int argc, char* argv[]) {
     std::cout << "[vPlc] Shutting down TUI Dashboard..." << std::endl;
     plc_tui.stop();
 
-    // 9. Stop scheduler and server
+    // 9. Stop scheduler and servers
     std::cout << "[vPlc] Shutting down cyclic scheduler..." << std::endl;
     plc_scheduler.stop();
+
+    std::cout << "[vPlc] Shutting down Siemens S7 server..." << std::endl;
+    s7_server.stop();
 
     std::cout << "[vPlc] Shutting down Modbus TCP server..." << std::endl;
     modbus_server.stop();

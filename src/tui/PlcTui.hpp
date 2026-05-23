@@ -4,13 +4,14 @@
 #include "core/PlcMemory.hpp"
 #include "core/PlcScheduler.hpp"
 #include "modbus/ModbusServer.hpp"
+#include "s7/S7Server.hpp"
 #include <thread>
 #include <atomic>
 #include <termios.h>
 
 class PlcTui {
 public:
-    PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server);
+    PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server, S7Server& s7_server);
     ~PlcTui();
 
     // Start/Stop the TUI rendering loop
@@ -35,6 +36,7 @@ private:
     PlcMemory& memory_;
     PlcScheduler& scheduler_;
     ModbusServer& server_;
+    S7Server& s7_server_;
 
     std::atomic<bool> is_running_;
     std::thread render_thread_;

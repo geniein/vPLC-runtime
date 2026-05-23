@@ -86,6 +86,10 @@ void PlcLoader::syncInputsToDll() {
             uint16_t val = memory_.readInputRegister(binding.plc_address);
             *static_cast<uint16_t*>(binding.sym_ptr) = val;
         }
+        else if (binding.type == VarBinding::Type::HOLDING_REGISTER) {
+            uint16_t val = memory_.readHoldingRegister(binding.plc_address);
+            *static_cast<uint16_t*>(binding.sym_ptr) = val;
+        }
     }
 }
 

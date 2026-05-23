@@ -6,10 +6,11 @@
 #include <sys/select.h>
 #include <iomanip>
 
-PlcTui::PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server)
+PlcTui::PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server, S7Server& s7_server)
     : memory_(memory),
       scheduler_(scheduler),
       server_(server),
+      s7_server_(s7_server),
       is_running_(false),
       raw_mode_enabled_(false) {}
 
@@ -118,6 +119,7 @@ void PlcTui::drawScreen() {
     ss << "  - Timing Jitter:     \033[1;37m" << stats.jitter_ms << " ms\033[0m\n";
     ss << "  - Total Scan Ticks:  \033[1;37m" << stats.total_ticks << "\033[0m\n";
     ss << "  - Modbus TCP Server: \033[1;37mPort " << server_.getPort() << "\033[0m | Clients Connected: \033[1;32m" << server_.getConnectedClientsCount() << "\033[0m\n";
+    ss << "  - Siemens S7 Server: \033[1;37mPort " << s7_server_.getPort() << "\033[0m | Clients Connected: \033[1;32m" << s7_server_.getClientsCount() << "\033[0m\n";
     ss << "\033[90m------------------------------------------------------------------------\033[0m\n";
 
     // Register maps
