@@ -1,0 +1,47 @@
+#ifndef PLC_TUI_HPP
+#define PLC_TUI_HPP
+
+#include "core/PlcMemory.hpp"
+#include "core/PlcScheduler.hpp"
+#include "modbus/ModbusServer.hpp"
+#include <thread>
+#include <atomic>
+#include <termios.h>
+
+class PlcTui {
+public:
+    PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server);
+    ~PlcTui();
+
+    // Start/Stop the TUI rendering loop
+    bool start();
+    void stop();
+
+    bool isRunning() const { return is_running_; }
+
+private:
+    // Core loops
+    void renderLoop();
+    void inputLoop();
+
+    // Render screen buffers
+    void drawScreen();
+
+    // POSIX raw terminal configurations
+    void enableRawMode();
+    void disableRawMode();
+    bool kbhit(); // Check if key was pressed
+
+    PlcMemory& memory_;
+    PlcScheduler& scheduler_;
+    ModbusServer& server_;
+
+    std::atomic<bool> is_running_;
+    std::thread render_thread_;
+    std::thread input_thread_;
+
+    struct termios orig_termios_;
+    bool raw_mode_enabled_;
+};
+
+#endif // PLC_TUI_HPP
