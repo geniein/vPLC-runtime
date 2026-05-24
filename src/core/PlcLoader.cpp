@@ -78,30 +78,59 @@ void PlcLoader::runLogic(unsigned long tick) {
 
 void PlcLoader::syncInputsToDll() {
     for (auto& binding : bindings_) {
-        if (binding.type == VarBinding::Type::DISCRETE_INPUT) {
-            bool val = memory_.readDiscreteInput(binding.plc_address);
+        // PLC Memory (Control outputs/parameters) -> DLL Logic Actuators
+        if (binding.type == VarBinding::Type::COIL) {
+            // Actuator outputs from PLC logic should be synced into DLL logic so physics can move
+            bool val = memory_.readCoil(binding.plc_address);
             *static_cast<uint8_t*>(binding.sym_ptr) = val ? 1 : 0;
-        } 
-        else if (binding.type == VarBinding::Type::INPUT_REGISTER) {
-            uint16_t val = memory_.readInputRegister(binding.plc_address);
-            *static_cast<uint16_t*>(binding.sym_ptr) = val;
+        }
+        else if (binding.type == VarBinding::Type::DISCRETE_INPUT) {
+            // Auto Mode Switch (%IX0.0) or Safety Curtain (%IX0.7) can be written by TUI/Gateway
+            // We sync only these specific external controls from PLC Memory to DLL
+            if (binding.plc_address == 0 || binding.plc_address == 7) {
+                bool val = memory_.readDiscreteInput(binding.plc_address);
+                *static_cast<uint8_t*>(binding.sym_ptr) = val ? 1 : 0;
+            }
         }
         else if (binding.type == VarBinding::Type::HOLDING_REGISTER) {
-            uint16_t val = memory_.readHoldingRegister(binding.plc_address);
-            *static_cast<uint16_t*>(binding.sym_ptr) = val;
+            // Sync Speed Set Point (%MW1) from PLC Memory to DLL, but DO NOT overwritecompleted cars (%MW0)
+            if (binding.plc_address == 1) {
+                uint16_t val = memory_.readHoldingRegister(binding.plc_address);
+                *static_cast<uint16_t*>(binding.sym_ptr) = val;
+            }
         }
     }
 }
 
 void PlcLoader::syncOutputsFromDll() {
     for (auto& binding : bindings_) {
-        if (binding.type == VarBinding::Type::COIL) {
-            uint8_t val = *static_cast<uint8_t*>(binding.sym_ptr);
-            memory_.writeCoil(binding.plc_address, val != 0);
+        // DLL Logic Sensors/Status -> PLC Memory Registers
+        if (binding.type == VarBinding::Type::DISCRETE_INPUT) {
+            // Sync physical sensors computed by DLL back to PLC Memory Discrete Inputs
+            // Avoid overwriting external controls (%IX0.0 and %IX0.7)
+            if (binding.plc_address != 0 && binding.plc_address != 7) {
+                uint8_t val = *static_cast<uint8_t*>(binding.sym_ptr);
+                memory_.writeDiscreteInput(binding.plc_address, val != 0);
+            }
+        }
+        else if (binding.type == VarBinding::Type::COIL) {
+            // Sync green/red alarm lamps computed inside DLL back to PLC Memory Coils
+            if (binding.plc_address == 4 || binding.plc_address == 5 || binding.plc_address == 6) {
+                uint8_t val = *static_cast<uint8_t*>(binding.sym_ptr);
+                memory_.writeCoil(binding.plc_address, val != 0);
+            }
+        }
+        else if (binding.type == VarBinding::Type::INPUT_REGISTER) {
+            // Sync conveyor position (%IW0) physics encoder value from DLL to PLC Memory
+            uint16_t val = *static_cast<uint16_t*>(binding.sym_ptr);
+            memory_.writeInputRegister(binding.plc_address, val);
         }
         else if (binding.type == VarBinding::Type::HOLDING_REGISTER) {
-            uint16_t val = *static_cast<uint16_t*>(binding.sym_ptr);
-            memory_.writeHoldingRegister(binding.plc_address, val);
+            // Sync completed cars (%MW0) computed by DLL back to PLC Memory Holding Register
+            if (binding.plc_address == 0) {
+                uint16_t val = *static_cast<uint16_t*>(binding.sym_ptr);
+                memory_.writeHoldingRegister(binding.plc_address, val);
+            }
         }
     }
 }
