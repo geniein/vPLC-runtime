@@ -4,6 +4,7 @@
 #include "modbus/ModbusServer.hpp"
 #include "s7/S7Server.hpp"
 #include "mc/McServer.hpp"
+#include "xgt/XgtServer.hpp"
 #include "tui/PlcTui.hpp"
 #include <iostream>
 #include <chrono>
@@ -57,6 +58,10 @@ int main(int argc, char* argv[]) {
     uint16_t mc_port = 5011;
     McServer mc_server(plc_memory, "0.0.0.0", mc_port);
 
+    // 4d. Initialize LS Electric XGT Server (Port 2004)
+    uint16_t xgt_port = 2004;
+    XgtServer xgt_server(plc_memory, "0.0.0.0", xgt_port);
+
     // Set initial test values to verify memory loading
     plc_memory.writeDiscreteInput(0, false);
     plc_memory.writeInputRegister(0, 150); // Will double to MW1 (300)
@@ -80,8 +85,17 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (!xgt_server.start()) {
+        std::cerr << "[vPlc] Failed to start LS Electric XGT Server." << std::endl;
+        mc_server.stop();
+        s7_server.stop();
+        modbus_server.stop();
+        return 1;
+    }
+
     if (!plc_scheduler.start()) {
         std::cerr << "[vPlc] Failed to start PLC Cyclic Scheduler." << std::endl;
+        xgt_server.stop();
         mc_server.stop();
         s7_server.stop();
         modbus_server.stop();
@@ -89,10 +103,11 @@ int main(int argc, char* argv[]) {
     }
 
     // 6. Start Terminal User Interface (TUI) Dashboard
-    PlcTui plc_tui(plc_memory, plc_scheduler, modbus_server, s7_server, mc_server);
+    PlcTui plc_tui(plc_memory, plc_scheduler, modbus_server, s7_server, mc_server, xgt_server);
     if (!plc_tui.start()) {
         std::cerr << "[vPlc] Failed to start TUI Dashboard." << std::endl;
         plc_scheduler.stop();
+        xgt_server.stop();
         mc_server.stop();
         s7_server.stop();
         modbus_server.stop();
@@ -120,6 +135,9 @@ int main(int argc, char* argv[]) {
 
     std::cout << "[vPlc] Shutting down Mitsubishi MC server..." << std::endl;
     mc_server.stop();
+
+    std::cout << "[vPlc] Shutting down LS Electric XGT server..." << std::endl;
+    xgt_server.stop();
 
     // 10. Unload dynamic library
     std::cout << "[vPlc] Unloading dynamic library..." << std::endl;

@@ -6,12 +6,13 @@
 #include <sys/select.h>
 #include <iomanip>
 
-PlcTui::PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server, S7Server& s7_server, McServer& mc_server)
+PlcTui::PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server, S7Server& s7_server, McServer& mc_server, XgtServer& xgt_server)
     : memory_(memory),
       scheduler_(scheduler),
       server_(server),
       s7_server_(s7_server),
       mc_server_(mc_server),
+      xgt_server_(xgt_server),
       is_running_(false),
       raw_mode_enabled_(false) {}
 
@@ -211,47 +212,50 @@ void PlcTui::drawScreen() {
     ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
     left_side[8] = ss_mc.str();
     
-    left_side[9]  = " \033[90m-----------------------------------------------\033[0m";
+    std::stringstream ss_xgt;
+    ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    left_side[9] = ss_xgt.str();
     
-    left_side[10]  = " \033[1;33m[PLC REGISTER MAP (DESCRIPTIVE)]\033[0m";
+    left_side[10] = " \033[90m-----------------------------------------------\033[0m";
+    
+    left_side[11] = " \033[1;33m[PLC REGISTER MAP (DESCRIPTIVE)]\033[0m";
     
     std::stringstream ss_ix00;
     ss_ix00 << "  %IX0.0 Auto Mode Switch  : " << (auto_mode ? "\033[1;32m[ AUTO ]\033[0m" : "\033[1;30m[MANUAL]\033[0m");
-    left_side[11] = ss_ix00.str();
+    left_side[12] = ss_ix00.str();
     
     std::stringstream ss_ix01;
     ss_ix01 << "  %IX0.1 Low Limit Sensor  : " << (low_limit ? "\033[1;31m[ ON   ]\033[0m" : "\033[1;30m[ OFF  ]\033[0m");
-    left_side[12] = ss_ix01.str();
+    left_side[13] = ss_ix01.str();
     
     std::stringstream ss_ix02;
     ss_ix02 << "  %IX0.2 High Limit Sensor : " << (high_limit ? "\033[1;31m[ ON   ]\033[0m" : "\033[1;30m[ OFF  ]\033[0m");
-    left_side[13] = ss_ix02.str();
+    left_side[14] = ss_ix02.str();
     
     std::stringstream ss_qx00;
     ss_qx00 << "  %QX0.0 Inlet Valve Act   : " << (inlet_valve ? "\033[1;32m[ OPEN ]\033[0m" : "\033[1;30m[CLOSED]\033[0m");
-    left_side[14] = ss_qx00.str();
+    left_side[15] = ss_qx00.str();
     
     std::stringstream ss_qx01;
     ss_qx01 << "  %QX0.1 Outlet Valve Act  : " << (outlet_valve ? "\033[1;32m[ OPEN ]\033[0m" : "\033[1;30m[CLOSED]\033[0m");
-    left_side[15] = ss_qx01.str();
+    left_side[16] = ss_qx01.str();
     
     std::stringstream ss_qx02;
     ss_qx02 << "  %QX0.2 System Run Lamp   : " << (run_lamp ? "\033[1;32m[ RUN  ]\033[0m" : "\033[1;30m[ STOP ]\033[0m");
-    left_side[16] = ss_qx02.str();
+    left_side[17] = ss_qx02.str();
     
     std::stringstream ss_iw0;
     ss_iw0 << "  %IW0   Current Level     : \033[1;36m" << std::setw(4) << water_level << " mm\033[0m";
-    left_side[17] = ss_iw0.str();
+    left_side[18] = ss_iw0.str();
     
     std::stringstream ss_mw0;
     ss_mw0 << "  %MW0   Pump Starts       : \033[1;35m" << std::setw(4) << pump_starts << "\033[0m";
-    left_side[18] = ss_mw0.str();
+    left_side[19] = ss_mw0.str();
     
     std::stringstream ss_mw1;
     ss_mw1 << "  %MW1   Target Set Point  : \033[1;35m" << std::setw(4) << set_point << " mm\033[0m";
-    left_side[19] = ss_mw1.str();
+    left_side[20] = ss_mw1.str();
     
-    left_side[20] = "";
     left_side[21] = "";
 
     // Draw left and right columns side-by-side using Horizontal Absolute Cursor code \033[48G

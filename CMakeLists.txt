@@ -27,6 +27,7 @@ set(SOURCES
     src/tui/PlcTui.cpp
     src/s7/S7Server.cpp
     src/mc/McServer.cpp
+    src/xgt/XgtServer.cpp
 )
 
 # Executable
