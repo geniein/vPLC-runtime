@@ -27,6 +27,8 @@ extern "C" {
     // Holding Registers (%MWx)
     uint16_t __MW0 = 0;  // Completed Car Count
     uint16_t __MW1 = 200; // Conveyor Speed Set Point (mm/s, default 200)
+    uint16_t __MW2 = 0;   // Chassis Present Force Switch (1 = force present)
+    uint16_t __MW3 = 0;   // Part Present Force Switch (1 = force part present)
     
     // Path identifier so that TUI knows which simulator is active
     const char* PLC_SIMULATOR_TYPE = "AUTOMOTIVE_LINE";
@@ -61,6 +63,8 @@ extern "C" {
         __IW0 = 0;
         __MW0 = 0;
         __MW1 = 200; // Default speed 200mm/s
+        __MW2 = 0;
+        __MW3 = 0;
 
         conveyor_pos_sim = 0.0;
         lift_pos_sim = 0.0;
@@ -101,7 +105,7 @@ extern "C" {
             conveyor_pos_sim += speed_per_tick;
             
             // Check if chassis has reached assembly station (500 mm)
-            if (conveyor_pos_sim >= 500.0 && conveyor_pos_sim < 520.0) {
+            if ((conveyor_pos_sim >= 500.0 && conveyor_pos_sim < 520.0) || __MW2 == 1) {
                 conveyor_pos_sim = 500.0; // Stop exactly at station
                 __IX0_1 = 1;              // Chassis Present
             } else {
@@ -150,7 +154,7 @@ extern "C" {
         __IX0_3 = (lift_pos_sim <= 0.05 && rotate_pos_sim <= 0.05) ? 1 : 0;
 
         // Auto-generation of material parts at pick station
-        if (__IX0_3 && !__QX0_2) {
+        if ((__IX0_3 && !__QX0_2) || __MW3 == 1) {
             __IX0_2 = 1; // Part ready at pick station
         }
 
