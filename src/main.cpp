@@ -32,10 +32,11 @@ int main(int argc, char* argv[]) {
     // 2. Initialize Dynamic Logic Loader
     PlcLoader plc_loader(plc_memory);
     
-    // Determine which library to load, MQTT parameters & server protocols filtering
+    // Determine which library to load, MQTT parameters, protocols filtering & port offset
     std::string lib_path = "./libmock_logic.dylib";
     std::string mqtt_broker = "";
     std::string protocols_str = "modbus,s7,mc,xgt";
+    uint16_t port_offset = 0;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -55,6 +56,14 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Usage: ./vPlc --protocols modbus,s7,mc,xgt" << std::endl;
                 return 1;
             }
+        } else if (arg == "--port-offset" || arg == "-o") {
+            if (i + 1 < argc) {
+                port_offset = static_cast<uint16_t>(std::stoi(argv[++i]));
+            } else {
+                std::cerr << "[vPlc Error] --port-offset or -o option requires an offset value." << std::endl;
+                std::cerr << "Usage: ./vPlc --port-offset 10" << std::endl;
+                return 1;
+            }
         } else if (arg == "--help" || arg == "-h" || arg == "help") {
             std::cout << "\033[1;36m================================================================================\033[0m\n";
             std::cout << "\033[1;37m                 VIRTUAL PLC (vPLC) - COMMAND LINE INTERFACE                    \033[0m\n";
@@ -66,6 +75,7 @@ int main(int argc, char* argv[]) {
             std::cout << "  assembly, car, --assembly, --car    Run the Automotive Assembly Line Simulator\n";
             std::cout << "  -m, --mqtt [broker_ip]              Enable MQTT client and publish telemetry to specified broker\n";
             std::cout << "  -p, --protocols [modbus,s7,mc,xgt]  Select which servers to start (Default: all)\n";
+            std::cout << "  -o, --port-offset [offset]          Add an offset to all default ports to avoid conflicts\n";
             std::cout << "  help, -h, --help                    Show this help message\n\n";
             std::cout << "Custom Logic Path:\n";
             std::cout << "  [path_to_dylib]                     Load any external dynamic link library (e.g. ./libmy_logic.dylib)\n";
@@ -108,20 +118,20 @@ int main(int argc, char* argv[]) {
     double target_cycle_ms = 20.0;
     PlcScheduler plc_scheduler(plc_loader, target_cycle_ms);
 
-    // 4. Initialize Modbus TCP Server (Port 5020)
-    uint16_t port = 5020;
+    // 4. Initialize Modbus TCP Server (Port 5020 + Offset)
+    uint16_t port = 5020 + port_offset;
     ModbusServer modbus_server(plc_memory, "0.0.0.0", port);
 
-    // 4b. Initialize Siemens S7 Server (Port 1020)
-    uint16_t s7_port = 1020;
+    // 4b. Initialize Siemens S7 Server (Port 1020 + Offset)
+    uint16_t s7_port = 1020 + port_offset;
     S7Server s7_server(plc_memory, "0.0.0.0", s7_port);
 
-    // 4c. Initialize Mitsubishi MC Server (Port 5011)
-    uint16_t mc_port = 5011;
+    // 4c. Initialize Mitsubishi MC Server (Port 5011 + Offset)
+    uint16_t mc_port = 5011 + port_offset;
     McServer mc_server(plc_memory, "0.0.0.0", mc_port);
 
-    // 4d. Initialize LS Electric XGT Server (Port 2004)
-    uint16_t xgt_port = 2004;
+    // 4d. Initialize LS Electric XGT Server (Port 2004 + Offset)
+    uint16_t xgt_port = 2004 + port_offset;
     XgtServer xgt_server(plc_memory, "0.0.0.0", xgt_port);
 
     // Set initial test values to verify memory loading
