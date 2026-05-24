@@ -210,19 +210,35 @@ void PlcTui::drawWaterTankScreen(const PlcScheduler::Stats& stats) {
     left_side[5]  = ss_tick.str();
     
     std::stringstream ss_mod;
-    ss_mod << "  Modbus Server:      \033[1;37mPort " << server_.getPort() << "\033[0m (" << server_.getConnectedClientsCount() << " clients)";
+    if (server_.isRunning()) {
+        ss_mod << "  Modbus Server:      \033[1;37mPort " << server_.getPort() << "\033[0m (" << server_.getConnectedClientsCount() << " clients)";
+    } else {
+        ss_mod << "  Modbus Server:      \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[6] = ss_mod.str();
     
     std::stringstream ss_s7;
-    ss_s7 << "  Siemens S7 Server:  \033[1;37mPort " << s7_server_.getPort() << "\033[0m (" << s7_server_.getClientsCount() << " clients)";
+    if (s7_server_.isRunning()) {
+        ss_s7 << "  Siemens S7 Server:  \033[1;37mPort " << s7_server_.getPort() << "\033[0m (" << s7_server_.getClientsCount() << " clients)";
+    } else {
+        ss_s7 << "  Siemens S7 Server:  \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[7] = ss_s7.str();
     
     std::stringstream ss_mc;
-    ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
+    if (mc_server_.isRunning()) {
+        ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
+    } else {
+        ss_mc << "  Mitsubishi MC:      \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[8] = ss_mc.str();
     
     std::stringstream ss_xgt;
-    ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    if (xgt_server_.isRunning()) {
+        ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    } else {
+        ss_xgt << "  LS Electric XGT:    \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[9] = ss_xgt.str();
     
     left_side[10] = " \033[90m-----------------------------------------------\033[0m";
@@ -440,19 +456,35 @@ void PlcTui::drawAssemblyScreen(const PlcScheduler::Stats& stats) {
     left_side[5]  = ss_tick.str();
     
     std::stringstream ss_mod;
-    ss_mod << "  Modbus Server:      \033[1;37mPort " << server_.getPort() << "\033[0m (" << server_.getConnectedClientsCount() << " clients)";
+    if (server_.isRunning()) {
+        ss_mod << "  Modbus Server:      \033[1;37mPort " << server_.getPort() << "\033[0m (" << server_.getConnectedClientsCount() << " clients)";
+    } else {
+        ss_mod << "  Modbus Server:      \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[6] = ss_mod.str();
     
     std::stringstream ss_s7;
-    ss_s7 << "  Siemens S7 Server:  \033[1;37mPort " << s7_server_.getPort() << "\033[0m (" << s7_server_.getClientsCount() << " clients)";
+    if (s7_server_.isRunning()) {
+        ss_s7 << "  Siemens S7 Server:  \033[1;37mPort " << s7_server_.getPort() << "\033[0m (" << s7_server_.getClientsCount() << " clients)";
+    } else {
+        ss_s7 << "  Siemens S7 Server:  \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[7] = ss_s7.str();
     
     std::stringstream ss_mc;
-    ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
+    if (mc_server_.isRunning()) {
+        ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
+    } else {
+        ss_mc << "  Mitsubishi MC:      \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[8] = ss_mc.str();
     
     std::stringstream ss_xgt;
-    ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    if (xgt_server_.isRunning()) {
+        ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    } else {
+        ss_xgt << "  LS Electric XGT:    \033[1;30m[ DISABLED ]\033[0m";
+    }
     left_side[9] = ss_xgt.str();
     
     left_side[10] = " \033[90m-----------------------------------------------\033[0m";

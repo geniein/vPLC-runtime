@@ -32,9 +32,10 @@ int main(int argc, char* argv[]) {
     // 2. Initialize Dynamic Logic Loader
     PlcLoader plc_loader(plc_memory);
     
-    // Determine which library to load & MQTT broker parameters
+    // Determine which library to load, MQTT parameters & server protocols filtering
     std::string lib_path = "./libmock_logic.dylib";
     std::string mqtt_broker = "";
+    std::string protocols_str = "modbus,s7,mc,xgt";
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -44,6 +45,14 @@ int main(int argc, char* argv[]) {
             } else {
                 std::cerr << "[vPlc Error] --mqtt or -m option requires broker IP address." << std::endl;
                 std::cerr << "Usage: ./vPlc --mqtt [IP]" << std::endl;
+                return 1;
+            }
+        } else if (arg == "--protocols" || arg == "-p") {
+            if (i + 1 < argc) {
+                protocols_str = argv[++i];
+            } else {
+                std::cerr << "[vPlc Error] --protocols or -p option requires protocol names." << std::endl;
+                std::cerr << "Usage: ./vPlc --protocols modbus,s7,mc,xgt" << std::endl;
                 return 1;
             }
         } else if (arg == "--help" || arg == "-h" || arg == "help") {
@@ -56,6 +65,7 @@ int main(int argc, char* argv[]) {
             std::cout << "  tank, mock, --tank, --mock          Run the Water Tank Level Control Simulator (Default)\n";
             std::cout << "  assembly, car, --assembly, --car    Run the Automotive Assembly Line Simulator\n";
             std::cout << "  -m, --mqtt [broker_ip]              Enable MQTT client and publish telemetry to specified broker\n";
+            std::cout << "  -p, --protocols [modbus,s7,mc,xgt]  Select which servers to start (Default: all)\n";
             std::cout << "  help, -h, --help                    Show this help message\n\n";
             std::cout << "Custom Logic Path:\n";
             std::cout << "  [path_to_dylib]                     Load any external dynamic link library (e.g. ./libmy_logic.dylib)\n";
@@ -68,6 +78,23 @@ int main(int argc, char* argv[]) {
         } else {
             // Treat as direct file path
             lib_path = arg;
+        }
+    }
+
+    // Parse protocols filtering
+    bool enable_modbus = false;
+    bool enable_s7 = false;
+    bool enable_mc = false;
+    bool enable_xgt = false;
+
+    if (protocols_str != "none") {
+        std::stringstream ss(protocols_str);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            if (token == "modbus") enable_modbus = true;
+            else if (token == "s7") enable_s7 = true;
+            else if (token == "mc") enable_mc = true;
+            else if (token == "xgt") enable_xgt = true;
         }
     }
 
@@ -101,39 +128,47 @@ int main(int argc, char* argv[]) {
     plc_memory.writeDiscreteInput(0, false);
     plc_memory.writeInputRegister(0, 150); // Will double to MW1 (300)
 
-    // 5. Start Servers
-    if (!modbus_server.start()) {
-        std::cerr << "[vPlc] Failed to start Modbus TCP Server." << std::endl;
-        return 1;
+    // 5. Start Servers (Conditional based on parsed protocol switches)
+    if (enable_modbus) {
+        if (!modbus_server.start()) {
+            std::cerr << "[vPlc] Failed to start Modbus TCP Server." << std::endl;
+            return 1;
+        }
     }
 
-    if (!s7_server.start()) {
-        std::cerr << "[vPlc] Failed to start Siemens S7 Server." << std::endl;
-        modbus_server.stop();
-        return 1;
+    if (enable_s7) {
+        if (!s7_server.start()) {
+            std::cerr << "[vPlc] Failed to start Siemens S7 Server." << std::endl;
+            if (enable_modbus) modbus_server.stop();
+            return 1;
+        }
     }
 
-    if (!mc_server.start()) {
-        std::cerr << "[vPlc] Failed to start Mitsubishi MC Server." << std::endl;
-        s7_server.stop();
-        modbus_server.stop();
-        return 1;
+    if (enable_mc) {
+        if (!mc_server.start()) {
+            std::cerr << "[vPlc] Failed to start Mitsubishi MC Server." << std::endl;
+            if (enable_s7) s7_server.stop();
+            if (enable_modbus) modbus_server.stop();
+            return 1;
+        }
     }
 
-    if (!xgt_server.start()) {
-        std::cerr << "[vPlc] Failed to start LS Electric XGT Server." << std::endl;
-        mc_server.stop();
-        s7_server.stop();
-        modbus_server.stop();
-        return 1;
+    if (enable_xgt) {
+        if (!xgt_server.start()) {
+            std::cerr << "[vPlc] Failed to start LS Electric XGT Server." << std::endl;
+            if (enable_mc) mc_server.stop();
+            if (enable_s7) s7_server.stop();
+            if (enable_modbus) modbus_server.stop();
+            return 1;
+        }
     }
 
     if (!plc_scheduler.start()) {
         std::cerr << "[vPlc] Failed to start PLC Cyclic Scheduler." << std::endl;
-        xgt_server.stop();
-        mc_server.stop();
-        s7_server.stop();
-        modbus_server.stop();
+        if (enable_xgt) xgt_server.stop();
+        if (enable_mc) mc_server.stop();
+        if (enable_s7) s7_server.stop();
+        if (enable_modbus) modbus_server.stop();
         return 1;
     }
 
@@ -177,17 +212,25 @@ int main(int argc, char* argv[]) {
     std::cout << "[vPlc] Shutting down cyclic scheduler..." << std::endl;
     plc_scheduler.stop();
 
-    std::cout << "[vPlc] Shutting down Siemens S7 server..." << std::endl;
-    s7_server.stop();
+    if (enable_s7) {
+        std::cout << "[vPlc] Shutting down Siemens S7 server..." << std::endl;
+        s7_server.stop();
+    }
 
-    std::cout << "[vPlc] Shutting down Modbus TCP server..." << std::endl;
-    modbus_server.stop();
+    if (enable_modbus) {
+        std::cout << "[vPlc] Shutting down Modbus TCP server..." << std::endl;
+        modbus_server.stop();
+    }
 
-    std::cout << "[vPlc] Shutting down Mitsubishi MC server..." << std::endl;
-    mc_server.stop();
+    if (enable_mc) {
+        std::cout << "[vPlc] Shutting down Mitsubishi MC server..." << std::endl;
+        mc_server.stop();
+    }
 
-    std::cout << "[vPlc] Shutting down LS Electric XGT server..." << std::endl;
-    xgt_server.stop();
+    if (enable_xgt) {
+        std::cout << "[vPlc] Shutting down LS Electric XGT server..." << std::endl;
+        xgt_server.stop();
+    }
 
     // 10. Unload dynamic library
     std::cout << "[vPlc] Unloading dynamic library..." << std::endl;
