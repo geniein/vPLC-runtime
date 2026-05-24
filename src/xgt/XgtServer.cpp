@@ -341,7 +341,7 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
     }
 
     // Construct final response packet
-    std::vector<uint8_t> response(18 + 4 + resp_data.size()); // header(18) + routing(4) + body
+    std::vector<uint8_t> response(30 + resp_data.size()); // header(18) + routing(4) + response body(8 + resp_data)
     
     // 1. Copy Company ID & Base fields (0-13)
     std::memcpy(response.data(), request.data(), 12);
