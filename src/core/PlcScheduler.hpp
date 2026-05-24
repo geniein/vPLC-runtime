@@ -26,6 +26,7 @@ public:
 
     bool isRunning() const { return is_running_; }
     Stats getStats() const;
+    const PlcLoader& getLoader() const { return loader_; }
 
 private:
     void loop();

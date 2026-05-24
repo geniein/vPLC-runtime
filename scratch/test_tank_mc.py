@@ -20,11 +20,7 @@ def test_mc_server():
         print(f"[Error] Failed to connect: {e}")
         sys.exit(1)
 
-    # --- TEST 1: Batch Read D Registers (Word, 0401, Sub 0000) ---
-    # Read D0, D1, D2 (3 words starting at address 0)
-    # Mapping in vPLC: D0 = %MW0 (Pump starts), D1 = %MW1 (Setpoint = 500), D2 = %MW2 (Unbound = 0)
-    # Header (9 bytes): Subheader=5000, NetNo=00, PCNo=FF, ModuleIO=FF03, StationNo=00, Length=0C00
-    # Body (12 bytes): MonitorTimer=1000, Cmd=0104, SubCmd=0000, StartAddr=000000, DeviceCode=A8 (D), Points=0300
+    # --- TEST 1: Batch Read D Registers ---
     req = b"\x50\x00\x00\xFF\xFF\x03\x00\x0C\x00\x10\x00\x01\x04\x00\x00\x00\x00\x00\xA8\x03\x00"
     print_hex("\n[Test 1] Batch Read D Registers Request", req)
     s.sendall(req)
@@ -58,10 +54,7 @@ def test_mc_server():
         print("  [FAILURE] Short response received for Test 1.")
         sys.exit(1)
 
-    # --- TEST 2: Batch Write D1 (Word, 1401, Sub 0000) to 750 ---
-    # Write 750 (0x02EE -> LE: \xEE\x02) to D1
-    # Header (9 bytes): Subheader=5000, NetNo=00, PCNo=FF, ModuleIO=FF03, StationNo=00, Length=0E00
-    # Body (14 bytes): MonitorTimer=1000, Cmd=0114, SubCmd=0000, StartAddr=010000 (D1), DeviceCode=A8 (D), Points=0100, Data=EE02
+    # --- TEST 2: Batch Write D1 to 750 ---
     req = b"\x50\x00\x00\xFF\xFF\x03\x00\x0E\x00\x10\x00\x01\x14\x00\x00\x01\x00\x00\xA8\x01\x00\xEE\x02"
     print_hex("\n[Test 2] Batch Write D1 Request (D1 = 750)", req)
     s.sendall(req)
@@ -80,13 +73,9 @@ def test_mc_server():
         print("  [FAILURE] Short response for Test 2.")
         sys.exit(1)
 
-    # Wait briefly for synchronization
     time.sleep(0.05)
 
     # --- TEST 3: Batch Read D1 Again to Verify Write ---
-    # Read D1 (1 word starting at address 1)
-    # Header (9 bytes): Subheader=5000, NetNo=00, PCNo=FF, ModuleIO=FF03, StationNo=00, Length=0C00
-    # Body (12 bytes): MonitorTimer=1000, Cmd=0104, SubCmd=0000, StartAddr=010000 (D1), DeviceCode=A8, Points=0100
     req = b"\x50\x00\x00\xFF\xFF\x03\x00\x0C\x00\x10\x00\x01\x04\x00\x00\x01\x00\x00\xA8\x01\x00"
     print_hex("\n[Test 3] Batch Read D1 Again Request", req)
     s.sendall(req)
@@ -105,11 +94,7 @@ def test_mc_server():
         print("  [FAILURE] Short response for Test 3.")
         sys.exit(1)
 
-    # --- TEST 4: Batch Read Bit Devices X (Bit, 0401, Sub 0001) ---
-    # Read X0, X1, X2 (3 points starting at address 0)
-    # Mapping in vPLC: X0 = %IX0.0 (Auto Mode), X1 = %IX0.1 (Low Limit), X2 = %IX0.2 (High Limit)
-    # Header (9 bytes): Subheader=5000, NetNo=00, PCNo=FF, ModuleIO=FF03, StationNo=00, Length=0C00
-    # Body (12 bytes): MonitorTimer=1000, Cmd=0104, SubCmd=0001 (Bit), StartAddr=000000, DeviceCode=9C (X), Points=0300
+    # --- TEST 4: Batch Read Bit Devices X ---
     req = b"\x50\x00\x00\xFF\xFF\x03\x00\x0C\x00\x10\x00\x01\x04\x01\x00\x00\x00\x00\x9C\x03\x00"
     print_hex("\n[Test 4] Batch Read Bit X Request", req)
     s.sendall(req)
@@ -128,10 +113,7 @@ def test_mc_server():
         print("  [FAILURE] Short response for Test 4.")
         sys.exit(1)
 
-    # --- TEST 5: Batch Write Bit Devices Y (Bit, 1401, Sub 0001) ---
-    # Write to Y0, Y1 (2 points starting at address 0) with [True, False] -> bit packed: \x10
-    # Header (9 bytes): Subheader=5000, NetNo=00, PCNo=FF, ModuleIO=FF03, StationNo=00, Length=0D00
-    # Body (13 bytes): MonitorTimer=1000, Cmd=0114, SubCmd=0001 (Bit), StartAddr=000000, DeviceCode=9D (Y), Points=0200, Data=10
+    # --- TEST 5: Batch Write Bit Devices Y ---
     req = b"\x50\x00\x00\xFF\xFF\x03\x00\x0D\x00\x10\x00\x01\x14\x01\x00\x00\x00\x00\x9D\x02\x00\x10"
     print_hex("\n[Test 5] Batch Write Bit Y Request", req)
     s.sendall(req)

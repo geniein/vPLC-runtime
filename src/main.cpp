@@ -30,10 +30,32 @@ int main(int argc, char* argv[]) {
     // 2. Initialize Dynamic Logic Loader
     PlcLoader plc_loader(plc_memory);
     
-    // Determine which library to load (default to mock library)
+    // Determine which library to load
     std::string lib_path = "./libmock_logic.dylib";
     if (argc > 1) {
-        lib_path = argv[1];
+        std::string arg = argv[1];
+        if (arg == "--help" || arg == "-h" || arg == "help") {
+            std::cout << "\033[1;36m================================================================================\033[0m\n";
+            std::cout << "\033[1;37m                 VIRTUAL PLC (vPLC) - COMMAND LINE INTERFACE                    \033[0m\n";
+            std::cout << "\033[1;36m================================================================================\033[0m\n";
+            std::cout << "Usage:\n";
+            std::cout << "  ./vPlc [option/path]\n\n";
+            std::cout << "Options:\n";
+            std::cout << "  tank, mock, --tank, --mock          Run the Water Tank Level Control Simulator (Default)\n";
+            std::cout << "  assembly, car, --assembly, --car    Run the Automotive Assembly Line Simulator\n";
+            std::cout << "  help, -h, --help                    Show this help message\n\n";
+            std::cout << "Custom Logic Path:\n";
+            std::cout << "  [path_to_dylib]                     Load any external dynamic link library (e.g. ./libmy_logic.dylib)\n";
+            std::cout << "\033[1;36m================================================================================\033[0m\n";
+            return 0;
+        } else if (arg == "tank" || arg == "mock" || arg == "--tank" || arg == "--mock") {
+            lib_path = "./libmock_logic.dylib";
+        } else if (arg == "assembly" || arg == "car" || arg == "--assembly" || arg == "--car") {
+            lib_path = "./libassembly_logic.dylib";
+        } else {
+            // Treat as direct file path
+            lib_path = arg;
+        }
     }
 
     if (!plc_loader.loadLibrary(lib_path)) {

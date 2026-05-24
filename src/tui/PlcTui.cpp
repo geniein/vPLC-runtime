@@ -100,7 +100,17 @@ void PlcTui::inputLoop() {
 
 void PlcTui::drawScreen() {
     auto stats = scheduler_.getStats();
-    
+    std::string lib_path = scheduler_.getLoader().getLibraryPath();
+    bool is_assembly = (lib_path.find("assembly") != std::string::npos);
+
+    if (is_assembly) {
+        drawAssemblyScreen(stats);
+    } else {
+        drawWaterTankScreen(stats);
+    }
+}
+
+void PlcTui::drawWaterTankScreen(const PlcScheduler::Stats& stats) {
     // Read variables from PLC memory
     bool auto_mode = memory_.readDiscreteInput(0);
     bool low_limit = memory_.readDiscreteInput(1);
@@ -125,7 +135,6 @@ void PlcTui::drawScreen() {
     ss << "\033[1;36m================================================================================\033[0m\n";
 
     // Build the tank visualizer rows (from 1000 down to 0)
-    // We have 10 rows for levels, plus header and footer
     std::string tank_rows[14];
     tank_rows[0]  = "     \033[1;33m[WATER TANK SIM]\033[0m";
     tank_rows[1]  = "      \033[1;37m+------------+\033[0m";
@@ -272,6 +281,238 @@ void PlcTui::drawScreen() {
     ss << " \033[1;33m[INTERACTIVE CONTROLS]\033[0m\n";
     ss << "  - \033[1;37m[I]\033[0m Toggle Auto Mode (%IX0.0)      - \033[1;37m[A]\033[0m Increase Setpoint (%MW1) [+50mm]\n";
     ss << "  - \033[1;31m[Q]\033[0m Graceful Shutdown and Exit       - \033[1;37m[Z]\033[0m Decrease Setpoint (%MW1) [-50mm]\n";
+    ss << "\033[1;36m================================================================================\033[0m\n";
+
+    std::cout << ss.str() << std::flush;
+}
+
+void PlcTui::drawAssemblyScreen(const PlcScheduler::Stats& stats) {
+    // Read variables from PLC memory
+    bool auto_mode = memory_.readDiscreteInput(0);
+    bool chassis_present = memory_.readDiscreteInput(1);
+    bool part_present = memory_.readDiscreteInput(2);
+    bool robot_home = memory_.readDiscreteInput(3);
+    bool part_clamped = memory_.readDiscreteInput(4);
+    bool rotated_right = memory_.readDiscreteInput(5);
+    bool lift_down = memory_.readDiscreteInput(6);
+    bool safety_intrusion = memory_.readDiscreteInput(7);
+    
+    bool conveyor_run = memory_.readCoil(0);
+    bool lift_solenoid = memory_.readCoil(1);
+    bool clamp_solenoid = memory_.readCoil(2);
+    bool rotate_solenoid = memory_.readCoil(3);
+    bool assembly_done = memory_.readCoil(4);
+    bool system_run = memory_.readCoil(5);
+    bool system_alarm = memory_.readCoil(6);
+    
+    uint16_t conveyor_pos = memory_.readInputRegister(0);
+    uint16_t completed_cars = memory_.readHoldingRegister(0);
+    uint16_t conveyor_speed = memory_.readHoldingRegister(1);
+    
+    std::stringstream ss;
+    
+    // Move cursor to home (top-left) without flickering
+    ss << "\033[H";
+
+    // Header Frame
+    ss << "\033[1;36m================================================================================\033[0m\n";
+    ss << "\033[1;37m               VIRTUAL PLC (vPLC) AUTOMOTIVE ASSEMBLY SYSTEM                    \033[0m\n";
+    ss << "\033[1;36m================================================================================\033[0m\n";
+
+    // Build the assembly visualizer rows (14 rows total)
+    std::string visual_rows[14];
+    visual_rows[0] = "     \033[1;33m[AUTOMOTIVE SIM]\033[0m";
+    
+    // Safety Status Banner
+    if (safety_intrusion) {
+        visual_rows[1] = "  \033[1;5;31m[ EMERGENCY STOP ]\033[0m";
+        visual_rows[2] = "  \033[1;31m!! CURTAIN BLOCKED !!\033[0m";
+    } else {
+        visual_rows[1] = "   \033[1;32m[ SAFETY SECURE ]\033[0m";
+        visual_rows[2] = "  \033[90mLight Curtain Clear\033[0m";
+    }
+
+    // Build robotic arm visuals (lines 3 to 7)
+    std::string arm_lines[5];
+    bool is_right = (rotate_solenoid != 0);
+    bool is_down = (lift_solenoid != 0);
+    bool is_clamped = (clamp_solenoid != 0);
+    
+    if (!is_right) {
+        if (!is_down) {
+            arm_lines[0] = "   \033[1;37m|====|\033[0m               ";
+            arm_lines[1] = "   \033[1;37m|    |\033[0m               ";
+            arm_lines[2] = "  \033[1;35m[GRIP]\033[0m               ";
+            arm_lines[3] = is_clamped ? "  \033[1;32m(Part)\033[0m               " : "                       ";
+            arm_lines[4] = "                       ";
+        } else {
+            arm_lines[0] = "   \033[1;37m|====|\033[0m               ";
+            arm_lines[1] = "   \033[1;37m|    |\033[0m               ";
+            arm_lines[2] = "   \033[1;37m|    |\033[0m               ";
+            arm_lines[3] = "  \033[1;35m[GRIP]\033[0m               ";
+            arm_lines[4] = is_clamped ? "  \033[1;32m(Part)\033[0m               " : "                       ";
+        }
+    } else {
+        if (!is_down) {
+            arm_lines[0] = "                 \033[1;37m|====|\033[0m ";
+            arm_lines[1] = "                 \033[1;37m|    |\033[0m ";
+            arm_lines[2] = "                \033[1;35m[GRIP]\033[0m ";
+            arm_lines[3] = is_clamped ? "                \033[1;32m(Part)\033[0m " : "                       ";
+            arm_lines[4] = "                       ";
+        } else {
+            arm_lines[0] = "                 \033[1;37m|====|\033[0m ";
+            arm_lines[1] = "                 \033[1;37m|    |\033[0m ";
+            arm_lines[2] = "                 \033[1;37m|    |\033[0m ";
+            arm_lines[3] = "                \033[1;35m[GRIP]\033[0m ";
+            arm_lines[4] = is_clamped ? "                \033[1;32m(Part)\033[0m " : "                       ";
+        }
+    }
+    
+    visual_rows[3] = arm_lines[0];
+    visual_rows[4] = arm_lines[1];
+    visual_rows[5] = arm_lines[2];
+    visual_rows[6] = arm_lines[3];
+    visual_rows[7] = arm_lines[4];
+
+    // Part Ready status at Pick station
+    visual_rows[8] = part_present ? "  \033[1;33m[Part Ready]\033[0m          " : "  [Empty]              ";
+
+    // Animate chassis horizontally on conveyor
+    int offset = conveyor_pos / 50; // Map 0-1000 to 0-20 offsets
+    if (offset < 0) offset = 0;
+    if (offset > 18) offset = 18;
+    
+    std::stringstream cs_ss, wl_ss;
+    for (int s = 0; s < offset; ++s) {
+        cs_ss << " ";
+        wl_ss << " ";
+    }
+    cs_ss << "\033[1;33m_ /\\ _\033[0m";
+    
+    // Check if car assembly is completed
+    if (chassis_present == 0 && conveyor_pos > 500) {
+        wl_ss << "\033[1;32m[o-|-o]\033[0m"; // Door assembled
+    } else {
+        wl_ss << "\033[37m[o   o]\033[0m"; // Bare chassis
+    }
+    
+    visual_rows[9]  = cs_ss.str();
+    visual_rows[10] = wl_ss.str();
+
+    // Conveyor rollers
+    bool roll_toggle = (stats.total_ticks / 3) % 2 == 0;
+    if (conveyor_run && !safety_intrusion) {
+        visual_rows[11] = roll_toggle ? "  O===O===O===O===O===O" : "  o===o===o===o===o===o";
+    } else {
+        visual_rows[11] = "  o===o===o===o===o===o"; // Static
+    }
+    
+    std::stringstream pos_ss;
+    pos_ss << "   Encoder: \033[1;36m" << conveyor_pos << " mm\033[0m";
+    visual_rows[12] = pos_ss.str();
+    
+    std::stringstream cnt_ss;
+    cnt_ss << "   Completed Cars: \033[1;32m" << completed_cars << "\033[0m";
+    visual_rows[13] = cnt_ss.str();
+
+    // Left Column elements
+    std::string left_side[22];
+    left_side[0]  = " \033[1;33m[SYSTEM STATUS]\033[0m";
+    
+    std::stringstream ss_run;
+    ss_run << "  Runtime Status:     \033[1;32mACTIVE\033[0m";
+    left_side[1]  = ss_run.str();
+    
+    std::stringstream ss_scan;
+    ss_scan << "  Target Scan Rate:   \033[1;37m" << stats.target_cycle_ms << " ms\033[0m";
+    left_side[2]  = ss_scan.str();
+    
+    std::stringstream ss_exec;
+    ss_exec << "  Avg Execution Scan: \033[1;37m" << std::fixed << std::setprecision(3) << stats.avg_scan_time_ms << " ms\033[0m";
+    left_side[3]  = ss_exec.str();
+    
+    std::stringstream ss_jit;
+    ss_jit << "  Scan Timing Jitter: \033[1;37m" << stats.jitter_ms << " ms\033[0m";
+    left_side[4]  = ss_jit.str();
+    
+    std::stringstream ss_tick;
+    ss_tick << "  Total Scan Ticks:   \033[1;37m" << stats.total_ticks << "\033[0m";
+    left_side[5]  = ss_tick.str();
+    
+    std::stringstream ss_mod;
+    ss_mod << "  Modbus Server:      \033[1;37mPort " << server_.getPort() << "\033[0m (" << server_.getConnectedClientsCount() << " clients)";
+    left_side[6] = ss_mod.str();
+    
+    std::stringstream ss_s7;
+    ss_s7 << "  Siemens S7 Server:  \033[1;37mPort " << s7_server_.getPort() << "\033[0m (" << s7_server_.getClientsCount() << " clients)";
+    left_side[7] = ss_s7.str();
+    
+    std::stringstream ss_mc;
+    ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
+    left_side[8] = ss_mc.str();
+    
+    std::stringstream ss_xgt;
+    ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    left_side[9] = ss_xgt.str();
+    
+    left_side[10] = " \033[90m-----------------------------------------------\033[0m";
+    
+    left_side[11] = " \033[1;33m[PLC REGISTER MAP (DESCRIPTIVE)]\033[0m";
+    
+    std::stringstream ss_ix00;
+    ss_ix00 << "  %IX0.0 Auto Run Switch   : " << (auto_mode ? "\033[1;32m[ AUTO ]\033[0m" : "\033[1;30m[MANUAL]\033[0m");
+    left_side[12] = ss_ix00.str();
+    
+    std::stringstream ss_ix01;
+    ss_ix01 << "  %IX0.1 Chassis Present   : " << (chassis_present ? "\033[1;31m[ ON   ]\033[0m" : "\033[1;30m[ OFF  ]\033[0m");
+    left_side[13] = ss_ix01.str();
+    
+    std::stringstream ss_ix07;
+    ss_ix07 << "  %IX0.7 Safety Light Cur  : " << (safety_intrusion ? "\033[1;31m[BLOCKED]\033[0m" : "\033[1;32m[ SAFE ]\033[0m");
+    left_side[14] = ss_ix07.str();
+    
+    std::stringstream ss_qx00;
+    ss_qx00 << "  %QX0.0 Conveyor Run Cmd  : " << (conveyor_run ? "\033[1;32m[ RUN  ]\033[0m" : "\033[1;30m[ STOP ]\033[0m");
+    left_side[15] = ss_qx00.str();
+    
+    std::stringstream ss_qx01;
+    ss_qx01 << "  %QX0.1 Robot Lift Down   : " << (lift_solenoid ? "\033[1;31m[ DOWN ]\033[0m" : "\033[1;30m[  UP  ]\033[0m");
+    left_side[16] = ss_qx01.str();
+    
+    std::stringstream ss_qx02;
+    ss_qx02 << "  %QX0.2 Robot Clamp Grip  : " << (clamp_solenoid ? "\033[1;32m[CLAMP ]\033[0m" : "\033[1;30m[RELEAS]\033[0m");
+    left_side[17] = ss_qx02.str();
+    
+    std::stringstream ss_qx03;
+    ss_qx03 << "  %QX0.3 Robot Rotate Right: " << (rotate_solenoid ? "\033[1;32m[ RIGHT]\033[0m" : "\033[1;30m[ LEFT ]\033[0m");
+    left_side[18] = ss_qx03.str();
+    
+    std::stringstream ss_iw0;
+    ss_iw0 << "  %IW0   Conveyor Position : \033[1;36m" << std::setw(4) << conveyor_pos << " mm\033[0m";
+    left_side[19] = ss_iw0.str();
+    
+    std::stringstream ss_mw0;
+    ss_mw0 << "  %MW0   Completed Cars    : \033[1;35m" << std::setw(4) << completed_cars << "\033[0m";
+    left_side[20] = ss_mw0.str();
+    
+    std::stringstream ss_mw1;
+    ss_mw1 << "  %MW1   Conveyor Speed    : \033[1;35m" << std::setw(4) << conveyor_speed << " mm/s\033[0m";
+    left_side[21] = ss_mw1.str();
+
+    // Draw left and right columns side-by-side using Horizontal Absolute Cursor code \033[48G
+    for (int i = 0; i < 22; ++i) {
+        ss << left_side[i];
+        if (i < 14) {
+            ss << "\033[48G" << visual_rows[i];
+        }
+        ss << "\n";
+    }
+
+    // Footer Frame
+    ss << "\033[1;36m================================================================================\033[0m\n";
+    ss << " \033[1;33m[INTERACTIVE CONTROLS]\033[0m\n";
+    ss << "  - \033[1;37m[I]\033[0m Toggle Auto Run (%IX0.0)      - \033[1;37m[A]\033[0m Increase Speed (%MW1) [+50mm/s]\n";
+    ss << "  - \033[1;31m[Q]\033[0m Graceful Shutdown and Exit       - \033[1;37m[Z]\033[0m Decrease Speed (%MW1) [-50mm/s]\n";
     ss << "\033[1;36m================================================================================\033[0m\n";
 
     std::cout << ss.str() << std::flush;

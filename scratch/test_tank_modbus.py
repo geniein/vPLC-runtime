@@ -22,8 +22,6 @@ def test_vplc():
         sys.exit(1)
 
     # --- PRE-TEST: Read Input Register 0 (%IW0) to get current analog value ---
-    # MBAP: TransID=0000, ProtoID=0000, Len=0006, UnitID=01
-    # PDU: FC=04, StartAddr=0000, Qty=0001
     req = b"\x00\x00\x00\x00\x00\x06\x01\x04\x00\x00\x00\x01"
     s.sendall(req)
     resp = s.recv(1024)
@@ -35,12 +33,6 @@ def test_vplc():
         sys.exit(1)
         
     # --- TEST 1: Read Holding Registers 0 to 2 ---
-    # Expected: 
-    # - Reg 0 (%MW0): >= 100 (Logic counter starts at 100 and increments)
-    # - Reg 1 (%MW1): == %IW0 * 2 (Logic multiplies %IW0 by 2)
-    # - Reg 2 (%MW2): 0 (Not bound in mock logic)
-    # MBAP: TransID=0001, ProtoID=0000, Len=0006, UnitID=01
-    # PDU: FC=03, StartAddr=0000, Qty=0003
     req = b"\x00\x01\x00\x00\x00\x06\x01\x03\x00\x00\x00\x03"
     print_hex("\n[Test 1] Read Holding Registers Request", req)
     s.sendall(req)
@@ -68,8 +60,6 @@ def test_vplc():
         sys.exit(1)
 
     # --- TEST 2: Write Single Holding Register 0 to 500 ---
-    # MBAP: TransID=0002, ProtoID=0000, Len=0006, UnitID=01
-    # PDU: FC=06, Addr=0000, Val=01F4 (500)
     req = b"\x00\x02\x00\x00\x00\x06\x01\x06\x00\x00\x01\xF4"
     print_hex("\n[Test 2] Write Single Holding Register Request", req)
     s.sendall(req)
@@ -89,7 +79,6 @@ def test_vplc():
         sys.exit(1)
 
     # --- TEST 3: Read Holding Register 0 Again ---
-    # Expected: Reg 0 >= 500 (Starts counting from 500 if input is ON, otherwise stays 500)
     req = b"\x00\x03\x00\x00\x00\x06\x01\x03\x00\x00\x00\x01"
     print_hex("\n[Test 3] Read Holding Register 0 Request", req)
     s.sendall(req)
@@ -106,7 +95,6 @@ def test_vplc():
         sys.exit(1)
 
     # --- TEST 4: Read Coils 0 to 4 ---
-    # TUI and PLC are actively running, so we just log the current coil bits
     req = b"\x00\x04\x00\x00\x00\x06\x01\x01\x00\x00\x00\x04"
     print_hex("\n[Test 4] Read Coils Request", req)
     s.sendall(req)
@@ -124,9 +112,6 @@ def test_vplc():
         sys.exit(1)
 
     # --- TEST 5: Write Multiple Coils (0 to 3) to [False, True, True, False] ---
-    # [False, True, True, False] -> bit pattern: 0 1 1 0 -> LSB first: 0110 = 6 = 0x06
-    # MBAP: TransID=0005, ProtoID=0000, Len=0008, UnitID=01
-    # PDU: FC=0F, StartAddr=0000, Qty=0004, ByteCount=01, Data=06
     req = b"\x00\x05\x00\x00\x00\x08\x01\x0F\x00\x00\x00\x04\x01\x06"
     print_hex("\n[Test 5] Write Multiple Coils Request", req)
     s.sendall(req)
@@ -140,12 +125,6 @@ def test_vplc():
         sys.exit(1)
 
     # --- TEST 6: Read Coils Again ---
-    # Since the active PLC logic overrides %QX0.0 and %QX0.1 every 20ms:
-    # - %QX0.0 will immediately be overwritten by logic input state (usually 0)
-    # - %QX0.1 will keep its blinker value (0 or 1)
-    # - %QX0.2 (Coil 2) is UNBOUND, so it will remain TRUE (1) as written in Test 5!
-    # - %QX0.3 (Coil 3) is UNBOUND, so it will remain FALSE (0) as written in Test 5!
-    # We assert Coil 2 is True and Coil 3 is False!
     req = b"\x00\x06\x00\x00\x00\x06\x01\x01\x00\x00\x00\x04"
     print_hex("\n[Test 6] Read Coils Again Request", req)
     s.sendall(req)

@@ -45,12 +45,7 @@ int main() {
     }
     std::cout << "[Client] Connected to S7 Server at 127.0.0.1:1020" << std::endl;
 
-    // --- TEST 1: Read DB1 (Data Block 1) registers 0 to 2 (first 6 bytes) ---
-    // In our vPLC:
-    // - DB1 maps to Holding Registers %MW0 to %MW1023
-    // - DB1.DBB0/DB1.DBB1 maps to %MW0 (Counter, starts at 100)
-    // - DB1.DBB2/DB1.DBB3 maps to %MW1 (Math Out = %IW0 * 2, starts at 300)
-    // - DB1.DBB4/DB1.DBB5 maps to %MW2 (Unbound, starts at 0)
+    // --- TEST 1: Read DB1 registers 0 to 2 (first 6 bytes) ---
     uint8_t buffer[1024];
     res = Cli_DBRead(client, 1, 0, 6, buffer);
     if (res != 0) {
@@ -76,7 +71,6 @@ int main() {
     std::cout << "  [SUCCESS] Test 1 Passed." << std::endl;
 
     // --- TEST 2: Write DB1.DBW0 (%MW0) to 750 ---
-    // 750 in big-endian is 0x02EE -> bytes [0x02, 0xEE]
     buffer[0] = 0x02;
     buffer[1] = 0xEE;
     printHex("\n[Test 2] Write DB1.DBW0 Request bytes", buffer, 2);
@@ -92,11 +86,9 @@ int main() {
     std::cout << "  -> Written 750 to DB1.DBW0." << std::endl;
     std::cout << "  [SUCCESS] Test 2 Passed." << std::endl;
 
-    // Wait briefly for synchronization
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // --- TEST 3: Read DB1.DBW0 (%MW0) again to verify ---
-    // Expected: >= 750 (PLC scheduler should sync this value to memory, and continue counting from 750 if inputs are true)
     res = Cli_DBRead(client, 1, 0, 2, buffer);
     if (res != 0) {
         char err_text[1024];
@@ -113,7 +105,6 @@ int main() {
     assert(val0 >= 750);
     std::cout << "  [SUCCESS] Test 3 Passed." << std::endl;
 
-    // 4. Disconnect and Destroy S7 Client
     Cli_Disconnect(client);
     Cli_Destroy(&client);
     std::cout << "\n================ All Siemens S7 Tests Passed! ================" << std::endl;
