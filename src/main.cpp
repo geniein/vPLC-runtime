@@ -6,7 +6,9 @@
 #include "mc/McServer.hpp"
 #include "xgt/XgtServer.hpp"
 #include "tui/PlcTui.hpp"
+#include "mqtt/MqttPublisher.hpp"
 #include <iostream>
+#include <memory>
 #include <chrono>
 #include <thread>
 #include <csignal>
@@ -30,19 +32,30 @@ int main(int argc, char* argv[]) {
     // 2. Initialize Dynamic Logic Loader
     PlcLoader plc_loader(plc_memory);
     
-    // Determine which library to load
+    // Determine which library to load & MQTT broker parameters
     std::string lib_path = "./libmock_logic.dylib";
-    if (argc > 1) {
-        std::string arg = argv[1];
-        if (arg == "--help" || arg == "-h" || arg == "help") {
+    std::string mqtt_broker = "";
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--mqtt" || arg == "-m") {
+            if (i + 1 < argc) {
+                mqtt_broker = argv[++i];
+            } else {
+                std::cerr << "[vPlc Error] --mqtt or -m option requires broker IP address." << std::endl;
+                std::cerr << "Usage: ./vPlc --mqtt [IP]" << std::endl;
+                return 1;
+            }
+        } else if (arg == "--help" || arg == "-h" || arg == "help") {
             std::cout << "\033[1;36m================================================================================\033[0m\n";
             std::cout << "\033[1;37m                 VIRTUAL PLC (vPLC) - COMMAND LINE INTERFACE                    \033[0m\n";
             std::cout << "\033[1;36m================================================================================\033[0m\n";
             std::cout << "Usage:\n";
-            std::cout << "  ./vPlc [option/path]\n\n";
+            std::cout << "  ./vPlc [options/path]\n\n";
             std::cout << "Options:\n";
             std::cout << "  tank, mock, --tank, --mock          Run the Water Tank Level Control Simulator (Default)\n";
             std::cout << "  assembly, car, --assembly, --car    Run the Automotive Assembly Line Simulator\n";
+            std::cout << "  -m, --mqtt [broker_ip]              Enable MQTT client and publish telemetry to specified broker\n";
             std::cout << "  help, -h, --help                    Show this help message\n\n";
             std::cout << "Custom Logic Path:\n";
             std::cout << "  [path_to_dylib]                     Load any external dynamic link library (e.g. ./libmy_logic.dylib)\n";
@@ -124,6 +137,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // 4e. Start MQTT Telemetry Publisher (Conditional on parameter presence)
+    std::unique_ptr<MqttPublisher> mqtt_publisher;
+    if (!mqtt_broker.empty()) {
+        mqtt_publisher = std::make_unique<MqttPublisher>(plc_memory, plc_loader, mqtt_broker);
+        if (!mqtt_publisher->start()) {
+            std::cerr << "[vPlc Warning] MQTT Publisher failed to start. Continuing without MQTT..." << std::endl;
+        }
+    }
+
     // 6. Start Terminal User Interface (TUI) Dashboard
     PlcTui plc_tui(plc_memory, plc_scheduler, modbus_server, s7_server, mc_server, xgt_server);
     if (!plc_tui.start()) {
@@ -145,7 +167,13 @@ int main(int argc, char* argv[]) {
     std::cout << "[vPlc] Shutting down TUI Dashboard..." << std::endl;
     plc_tui.stop();
 
-    // 9. Stop scheduler and servers
+    // 9. Stop MQTT publisher
+    if (mqtt_publisher) {
+        std::cout << "[vPlc] Shutting down MQTT publisher..." << std::endl;
+        mqtt_publisher->stop();
+    }
+
+    // 9b. Stop scheduler and servers
     std::cout << "[vPlc] Shutting down cyclic scheduler..." << std::endl;
     plc_scheduler.stop();
 
