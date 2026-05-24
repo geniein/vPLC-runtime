@@ -1,0 +1,17 @@
+# Compiled binaries
+vPlc
+test_s7_assembly
+test_s7_tank
+
+# Dynamic libraries
+*.dylib
+*.so
+*.dll
+
+# OS generated files
+.DS_Store
+
+# IDE / Build directories
+build/
+.vscode/
+.idea/
