@@ -172,4 +172,21 @@ void S7Server::syncAfterCycle() {
         db1_shadow_buffer_[byte_idx] = h;
         db1_shadow_buffer_[byte_idx + 1] = l;
     }
+
+    // 4. Mirror Input Register 0 (%IW0, Conveyor position) to DB1 buffer (Offset 128)
+    uint16_t pos_val = memory_.readInputRegister(0);
+    db1_buffer_[128] = static_cast<uint8_t>((pos_val >> 8) & 0xFF);
+    db1_buffer_[129] = static_cast<uint8_t>(pos_val & 0xFF);
+    db1_shadow_buffer_[128] = db1_buffer_[128];
+    db1_shadow_buffer_[129] = db1_buffer_[129];
+
+    // 5. Mirror Coils 0..7 (%QX0.0..%QX0.7, Conveyor run and Robot states) to DB1 buffer (Offset 272)
+    uint8_t coils_byte = 0;
+    for (size_t bit = 0; bit < 8; ++bit) {
+        if (memory_.readCoil(bit)) {
+            coils_byte |= (1 << bit);
+        }
+    }
+    db1_buffer_[272] = coils_byte;
+    db1_shadow_buffer_[272] = coils_byte;
 }
