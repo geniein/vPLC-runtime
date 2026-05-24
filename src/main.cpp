@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
     std::string mqtt_broker = "";
     std::string protocols_str = "modbus,s7,mc,xgt";
     uint16_t port_offset = 0;
+    bool manual_mode = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -64,6 +65,8 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Usage: ./vPlc --port-offset 10" << std::endl;
                 return 1;
             }
+        } else if (arg == "--manual" || arg == "-manual") {
+            manual_mode = true;
         } else if (arg == "--help" || arg == "-h" || arg == "help") {
             std::cout << "\033[1;36m================================================================================\033[0m\n";
             std::cout << "\033[1;37m                 VIRTUAL PLC (vPLC) - COMMAND LINE INTERFACE                    \033[0m\n";
@@ -76,6 +79,7 @@ int main(int argc, char* argv[]) {
             std::cout << "  -m, --mqtt [broker_ip]              Enable MQTT client and publish telemetry to specified broker\n";
             std::cout << "  -p, --protocols [modbus,s7,mc,xgt]  Select which servers to start (Default: all)\n";
             std::cout << "  -o, --port-offset [offset]          Add an offset to all default ports to avoid conflicts\n";
+            std::cout << "  --manual, -manual                   Start the PLC in MANUAL mode (Default: AUTO)\n";
             std::cout << "  help, -h, --help                    Show this help message\n\n";
             std::cout << "Custom Logic Path:\n";
             std::cout << "  [path_to_dylib]                     Load any external dynamic link library (e.g. ./libmy_logic.dylib)\n";
@@ -135,8 +139,8 @@ int main(int argc, char* argv[]) {
     XgtServer xgt_server(plc_memory, "0.0.0.0", xgt_port);
 
     // Set initial test values to verify memory loading
-    plc_memory.writeDiscreteInput(0, false);
-    plc_memory.writeInputRegister(0, 150); // Will double to MW1 (300)
+    plc_memory.writeDiscreteInput(0, !manual_mode);
+    plc_memory.writeInputRegister(0, 0); // Start position at 0 mm instead of 150 mm
 
     // 5. Start Servers (Conditional based on parsed protocol switches)
     if (enable_modbus) {

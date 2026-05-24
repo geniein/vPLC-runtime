@@ -41,7 +41,7 @@ extern "C" {
     uint8_t alarm_flash = 0;
 
     void config_init__(void) {
-        __IX0_0 = 0;
+        __IX0_0 = 1; // Default to Auto Mode enabled for silent background running
         __IX0_1 = 0;
         __IX0_2 = 1; // Part initially ready at pick station
         __IX0_3 = 1; // Starts at home
