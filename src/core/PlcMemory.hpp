@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <shared_mutex>
+#include <mutex>
 #include <optional>
 
 class PlcMemory {

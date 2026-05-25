@@ -23,6 +23,12 @@ void signalHandler(int signum) {
     should_quit = true;
 }
 
+#ifdef __APPLE__
+#define LIB_EXTENSION ".dylib"
+#else
+#define LIB_EXTENSION ".so"
+#endif
+
 int main(int argc, char* argv[]) {
     // Register signal handler for clean shutdown
     std::signal(SIGINT, signalHandler);
@@ -38,7 +44,7 @@ int main(int argc, char* argv[]) {
     PlcLoader plc_loader(plc_memory);
     
     // Determine which library to load, MQTT parameters, protocols filtering & port offset
-    std::string lib_path = "./libmock_logic.dylib";
+    std::string lib_path = "./libmock_logic" LIB_EXTENSION;
     std::string mqtt_broker = "";
     std::string protocols_str = "modbus,s7,mc,xgt";
     uint16_t port_offset = 0;
@@ -98,13 +104,13 @@ int main(int argc, char* argv[]) {
             std::cout << "  --manual, -manual                   Start the PLC in MANUAL mode (Default: AUTO)\n";
             std::cout << "  help, -h, --help                    Show this help message\n\n";
             std::cout << "Custom Logic Path:\n";
-            std::cout << "  [path_to_dylib]                     Load any external dynamic link library (e.g. ./libmy_logic.dylib)\n";
+            std::cout << "  [path_to_shared_lib]                Load any external dynamic link library (e.g. ./libmy_logic.so)\n";
             std::cout << "\033[1;36m================================================================================\033[0m\n";
             return 0;
         } else if (arg == "tank" || arg == "mock" || arg == "--tank" || arg == "--mock") {
-            lib_path = "./libmock_logic.dylib";
+            lib_path = "./libmock_logic" LIB_EXTENSION;
         } else if (arg == "assembly" || arg == "car" || arg == "--assembly" || arg == "--car") {
-            lib_path = "./libassembly_logic.dylib";
+            lib_path = "./libassembly_logic" LIB_EXTENSION;
         } else {
             // Treat as direct file path
             lib_path = arg;

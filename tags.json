@@ -5,5 +5,12 @@
         "description": "Conveyor Speed",
         "name": "ConveyorSpeed",
         "type": "UINT16"
+    },
+    {
+        "address": 1,
+        "area": "HoldingRegisters",
+        "description": "aa",
+        "name": "Motor_Start",
+        "type": "UINT16"
     }
 ]

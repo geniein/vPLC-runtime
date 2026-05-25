@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <algorithm>
+#include <mutex>
 
 McServer::McServer(PlcMemory& memory, const std::string& ip_address, uint16_t port)
     : memory_(memory),

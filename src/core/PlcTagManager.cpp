@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include "json.hpp" // Header-only JSON library in src/3rdparty
+#include <mutex>
 
 using json = nlohmann::json;
 
