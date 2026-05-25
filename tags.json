@@ -1,0 +1,9 @@
+[
+    {
+        "address": 10,
+        "area": "HoldingRegisters",
+        "description": "Conveyor Speed",
+        "name": "ConveyorSpeed",
+        "type": "UINT16"
+    }
+]

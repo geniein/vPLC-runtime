@@ -11,7 +11,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 endif()
 
 # Directories
-include_directories(src /opt/homebrew/include)
+include_directories(src src/3rdparty /opt/homebrew/include)
 link_directories(/opt/homebrew/lib)
 
 # Threading support
@@ -21,6 +21,7 @@ find_package(Threads REQUIRED)
 set(SOURCES
     src/main.cpp
     src/core/PlcMemory.cpp
+    src/core/PlcTagManager.cpp
     src/core/PlcLoader.cpp
     src/core/PlcScheduler.cpp
     src/modbus/ModbusServer.cpp
@@ -29,6 +30,7 @@ set(SOURCES
     src/mc/McServer.cpp
     src/xgt/XgtServer.cpp
     src/mqtt/MqttPublisher.cpp
+    src/web/WebServer.cpp
 )
 
 # Executable

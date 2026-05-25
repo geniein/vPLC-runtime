@@ -1,10 +1,12 @@
 #include "core/PlcMemory.hpp"
+#include "core/PlcTagManager.hpp"
 #include "core/PlcLoader.hpp"
 #include "core/PlcScheduler.hpp"
 #include "modbus/ModbusServer.hpp"
 #include "s7/S7Server.hpp"
 #include "mc/McServer.hpp"
 #include "xgt/XgtServer.hpp"
+#include "web/WebServer.hpp"
 #include "tui/PlcTui.hpp"
 #include "mqtt/MqttPublisher.hpp"
 #include <iostream>
@@ -29,6 +31,9 @@ int main(int argc, char* argv[]) {
     // 1. Initialize PLC Memory
     PlcMemory plc_memory;
 
+    // 1b. Initialize Tag Manager (JSON-based persistence)
+    PlcTagManager plc_tag_manager(plc_memory);
+
     // 2. Initialize Dynamic Logic Loader
     PlcLoader plc_loader(plc_memory);
     
@@ -37,6 +42,8 @@ int main(int argc, char* argv[]) {
     std::string mqtt_broker = "";
     std::string protocols_str = "modbus,s7,mc,xgt";
     uint16_t port_offset = 0;
+    uint16_t web_port = 8080;
+    bool enable_web = true;
     bool manual_mode = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -65,6 +72,14 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Usage: ./vPlc --port-offset 10" << std::endl;
                 return 1;
             }
+        } else if (arg == "--web" || arg == "-w") {
+            if (i + 1 < argc) {
+                web_port = static_cast<uint16_t>(std::stoi(argv[++i]));
+            } else {
+                std::cerr << "[vPlc Error] --web or -w option requires a port number." << std::endl;
+                std::cerr << "Usage: ./vPlc --web 8080" << std::endl;
+                return 1;
+            }
         } else if (arg == "--manual" || arg == "-manual") {
             manual_mode = true;
         } else if (arg == "--help" || arg == "-h" || arg == "help") {
@@ -79,6 +94,7 @@ int main(int argc, char* argv[]) {
             std::cout << "  -m, --mqtt [broker_ip]              Enable MQTT client and publish telemetry to specified broker\n";
             std::cout << "  -p, --protocols [modbus,s7,mc,xgt]  Select which servers to start (Default: all)\n";
             std::cout << "  -o, --port-offset [offset]          Add an offset to all default ports to avoid conflicts\n";
+            std::cout << "  -w, --web [port]                    Specify port for Embedded Web Dashboard (Default: 8080)\n";
             std::cout << "  --manual, -manual                   Start the PLC in MANUAL mode (Default: AUTO)\n";
             std::cout << "  help, -h, --help                    Show this help message\n\n";
             std::cout << "Custom Logic Path:\n";
@@ -195,6 +211,15 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // 4f. Start Embedded Web Configurator & API Server
+    std::unique_ptr<WebServer> web_server;
+    if (enable_web) {
+        web_server = std::make_unique<WebServer>(plc_tag_manager, "0.0.0.0", web_port, manual_mode);
+        if (!web_server->start()) {
+            std::cerr << "[vPlc Warning] Web Server failed to start. Continuing..." << std::endl;
+        }
+    }
+
     // 6. Start Terminal User Interface (TUI) Dashboard
     PlcTui plc_tui(plc_memory, plc_scheduler, modbus_server, s7_server, mc_server, xgt_server);
     if (!plc_tui.start()) {
@@ -216,10 +241,14 @@ int main(int argc, char* argv[]) {
     std::cout << "[vPlc] Shutting down TUI Dashboard..." << std::endl;
     plc_tui.stop();
 
-    // 9. Stop MQTT publisher
+    // 9. Stop MQTT publisher & Web Configurator
     if (mqtt_publisher) {
         std::cout << "[vPlc] Shutting down MQTT publisher..." << std::endl;
         mqtt_publisher->stop();
+    }
+    if (web_server) {
+        std::cout << "[vPlc] Shutting down Web Configurator..." << std::endl;
+        web_server->stop();
     }
 
     // 9b. Stop scheduler and servers
