@@ -32,6 +32,8 @@ vPlc/
 ├── CMakeLists.txt              # CMake 빌드 파일
 ├── README.md                   # 본 설명서 파일
 ├── .gitignore                  # 컴파일 바이너리 및 dylib 제외 필터
+├── docs/                       # 핵심 상세 가이드 및 설계 산출물 폴더
+│   └── mapping_engine_guide.md # 👉 매핑 엔진 & 이기종 PLC 메모리 영역 가이드
 ├── libmock_logic.dylib         # 물탱크 수위 시뮬레이터 동적 라이브러리
 ├── libassembly_logic.dylib     # 자동차 조립 라인 시뮬레이터 동적 라이브러리
 ├── test_s7_tank                # 컴파일된 물탱크용 S7 테스트 바이너리
@@ -67,6 +69,18 @@ vPlc/
     ├── test_assembly_xgt.py    # 자동차 조립 모드 LS XGT 실시간 조작 테스트
     └── test_assembly_s7.cpp    # 자동차 조립 모드 Siemens S7 C++ 실시간 조작 테스트 소스
 ```
+
+---
+
+## 🔄 다이나믹 매핑 엔진 (Dynamic Mapping Engine)
+
+vPLC는 이기종 산업용 필드버스 장비 간의 레지스터를 소스 코드 수정 없이 실시간 연동해 주는 **양방향 다이나믹 매핑 엔진**을 탑재하고 있습니다.
+*   **양방향 동기화**: Siemens S7, Mitsubishi MC, LS Electric XGT, Modbus의 비트/워드 메모리 값을 20ms 주기 스캔 타임 안에서 양방향 실시간 동기화합니다.
+*   **실시간 핫 리로드**: `mappings.json` 파일을 통한 부팅 시 로드는 물론, 내장된 웹 서버 API(POST `/api/mappings`)를 통해 런타임 중에 매핑 규칙을 실시간 동기화 상태로 핫 리로드할 수 있습니다.
+
+> [!TIP]
+> PLC 제조사별 상세 메모리 주소 체계(DB, D, M, PE, PA, W 등) 및 데이터 타입 규격, cURL을 이용한 실시간 핫 리로드 API 활용법은 아래 상세 가이드 문서를 참고하십시오:
+> **👉 [vPLC 매핑 엔진 & PLC별 메모리 영역 상세 가이드](file:///home/ingenie/vPLC-runtime/docs/mapping_engine_guide.md)**
 
 ---
 
