@@ -31,6 +31,7 @@ private:
     void drawScreen();
     void drawWaterTankScreen(const PlcScheduler::Stats& stats);
     void drawAssemblyScreen(const PlcScheduler::Stats& stats);
+    void drawTrimScreen(const PlcScheduler::Stats& stats);
 
     // POSIX raw terminal configurations
     void enableRawMode();

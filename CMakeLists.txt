@@ -52,3 +52,8 @@ add_library(assembly_logic SHARED src/logic/assembly_logic.cpp)
 set_target_properties(assembly_logic PROPERTIES PREFIX "lib")
 target_include_directories(assembly_logic PRIVATE src)
 
+add_library(trim_logic SHARED src/logic/trim_logic.cpp)
+set_target_properties(trim_logic PROPERTIES PREFIX "lib")
+target_include_directories(trim_logic PRIVATE src)
+
+

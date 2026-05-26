@@ -97,6 +97,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Options:\n";
             std::cout << "  tank, mock, --tank, --mock          Run the Water Tank Level Control Simulator (Default)\n";
             std::cout << "  assembly, car, --assembly, --car    Run the Automotive Assembly Line Simulator\n";
+            std::cout << "  trim, final, --trim, --final        Run the Automotive Trim & Final Assembly Line Simulator\n";
             std::cout << "  -m, --mqtt [broker_ip]              Enable MQTT client and publish telemetry to specified broker\n";
             std::cout << "  -p, --protocols [modbus,s7,mc,xgt]  Select which servers to start (Default: all)\n";
             std::cout << "  -o, --port-offset [offset]          Add an offset to all default ports to avoid conflicts\n";
@@ -111,6 +112,8 @@ int main(int argc, char* argv[]) {
             lib_path = "./libmock_logic" LIB_EXTENSION;
         } else if (arg == "assembly" || arg == "car" || arg == "--assembly" || arg == "--car") {
             lib_path = "./libassembly_logic" LIB_EXTENSION;
+        } else if (arg == "trim" || arg == "final" || arg == "--trim" || arg == "--final") {
+            lib_path = "./libtrim_logic" LIB_EXTENSION;
         } else {
             // Treat as direct file path
             lib_path = arg;

@@ -105,21 +105,37 @@ void PlcTui::inputLoop() {
                     memory_.writeDiscreteInput(0, !val);
                 }
                 else if (c == 'a' || c == 'A') {
-                    // Increase Target Set Point (%MW1) by 50mm (max 1000)
-                    uint16_t val = memory_.readHoldingRegister(1);
-                    if (val + 50 <= 1000) {
-                        memory_.writeHoldingRegister(1, val + 50);
+                    std::string lib_path = scheduler_.getLoader().getLibraryPath();
+                    bool is_trim = (lib_path.find("trim") != std::string::npos || lib_path.find("final") != std::string::npos);
+                    if (is_trim) {
+                        uint16_t val = memory_.readHoldingRegister(3);
+                        if (val + 50 <= 1000) {
+                            memory_.writeHoldingRegister(3, val + 50);
+                        }
                     } else {
-                        memory_.writeHoldingRegister(1, 1000);
+                        uint16_t val = memory_.readHoldingRegister(1);
+                        if (val + 50 <= 1000) {
+                            memory_.writeHoldingRegister(1, val + 50);
+                        } else {
+                            memory_.writeHoldingRegister(1, 1000);
+                        }
                     }
                 }
                 else if (c == 'z' || c == 'Z') {
-                    // Decrease Target Set Point (%MW1) by 50mm (min 0)
-                    uint16_t val = memory_.readHoldingRegister(1);
-                    if (val >= 50) {
-                        memory_.writeHoldingRegister(1, val - 50);
+                    std::string lib_path = scheduler_.getLoader().getLibraryPath();
+                    bool is_trim = (lib_path.find("trim") != std::string::npos || lib_path.find("final") != std::string::npos);
+                    if (is_trim) {
+                        uint16_t val = memory_.readHoldingRegister(3);
+                        if (val >= 50) {
+                            memory_.writeHoldingRegister(3, val - 50);
+                        }
                     } else {
-                        memory_.writeHoldingRegister(1, 0);
+                        uint16_t val = memory_.readHoldingRegister(1);
+                        if (val >= 50) {
+                            memory_.writeHoldingRegister(1, val - 50);
+                        } else {
+                            memory_.writeHoldingRegister(1, 0);
+                        }
                     }
                 }
             }
@@ -132,9 +148,12 @@ void PlcTui::drawScreen() {
     auto stats = scheduler_.getStats();
     std::string lib_path = scheduler_.getLoader().getLibraryPath();
     bool is_assembly = (lib_path.find("assembly") != std::string::npos);
+    bool is_trim = (lib_path.find("trim") != std::string::npos || lib_path.find("final") != std::string::npos);
 
     if (is_assembly) {
         drawAssemblyScreen(stats);
+    } else if (is_trim) {
+        drawTrimScreen(stats);
     } else {
         drawWaterTankScreen(stats);
     }
@@ -577,6 +596,243 @@ void PlcTui::drawAssemblyScreen(const PlcScheduler::Stats& stats) {
     ss << " \033[1;33m[INTERACTIVE CONTROLS]\033[0m\n";
     ss << "  - \033[1;37m[I]\033[0m Toggle Auto Run (%IX0.0)      - \033[1;37m[A]\033[0m Increase Speed (%MW1) [+50mm/s]\n";
     ss << "  - \033[1;31m[Q]\033[0m Graceful Shutdown and Exit       - \033[1;37m[Z]\033[0m Decrease Speed (%MW1) [-50mm/s]\n";
+    ss << "\033[1;36m================================================================================\033[0m\n";
+
+    std::cout << ss.str() << std::flush;
+}
+
+void PlcTui::drawTrimScreen(const PlcScheduler::Stats& stats) {
+    bool auto_mode = memory_.readDiscreteInput(0);
+    bool st1_arrived = memory_.readDiscreteInput(1);
+    bool st2_arrived = memory_.readDiscreteInput(2);
+    bool st3_arrived = memory_.readDiscreteInput(3);
+    bool st4_arrived = memory_.readDiscreteInput(4);
+    bool safety_estop = memory_.readDiscreteInput(5);
+    bool vision_ok = memory_.readDiscreteInput(6);
+    bool glue_low = memory_.readDiscreteInput(7);
+    
+    bool conveyor_run = memory_.readCoil(0);
+    bool gantry_dock = memory_.readCoil(1);
+    bool bolt_active = memory_.readCoil(2);
+    bool glue_jet = memory_.readCoil(3);
+    bool seat_down = memory_.readCoil(4);
+    bool pass_lamp = memory_.readCoil(5);
+    bool fail_lamp = memory_.readCoil(6);
+    bool run_lamp = memory_.readCoil(7);
+    
+    uint16_t conveyor_pos = memory_.readInputRegister(0);
+    uint16_t torque_val = memory_.readInputRegister(1);
+    uint16_t force_val = memory_.readInputRegister(2);
+    uint16_t temp_val = memory_.readInputRegister(3);
+    
+    uint16_t total_produced = memory_.readHoldingRegister(0);
+    uint16_t ok_count = memory_.readHoldingRegister(1);
+    uint16_t ng_count = memory_.readHoldingRegister(2);
+    uint16_t torque_setpoint = memory_.readHoldingRegister(3);
+    uint16_t skip_st2 = memory_.readHoldingRegister(4);
+    
+    std::stringstream ss;
+    ss << "\033[H";
+
+    ss << "\033[1;36m================================================================================\033[0m\n";
+    ss << "\033[1;37m             vPLC AUTOMOTIVE FINAL ASSEMBLY & TRIM PRODUCTION LINE              \033[0m\n";
+    ss << "\033[1;36m================================================================================\033[0m\n";
+
+    std::string visual_rows[14];
+    visual_rows[0] = "     \033[1;33m[TRIM LINE SIM]\033[0m";
+    
+    if (safety_estop) {
+        visual_rows[1] = "  \033[1;5;31m[ EMERGENCY STOP ]\033[0m";
+        visual_rows[2] = "  \033[1;31m!! CURTAIN INTRUSION !!\033[0m";
+    } else {
+        visual_rows[1] = "   \033[1;32m[ SAFETY SECURE ]\033[0m";
+        if (glue_low) {
+            visual_rows[2] = "  \033[1;33m! GLUE TANK LEVEL LOW !\033[0m";
+        } else {
+            visual_rows[2] = "  \033[90mUrethane Heater: OK\033[0m";
+        }
+    }
+
+    if (gantry_dock) {
+        visual_rows[3] = "  \033[36mST1 Cockpit Gantry:\033[0m \033[1;33m[DOCKING...]\033[0m";
+    } else {
+        visual_rows[3] = "  \033[36mST1 Cockpit Gantry:\033[0m \033[90m[HOME]\033[0m";
+    }
+    
+    if (bolt_active) {
+        visual_rows[4] = "  \033[36mST1 Nutrunner:\033[0m \033[1;5;32m⚡ BOLTING ⚡\033[0m";
+    } else {
+        visual_rows[4] = "  \033[36mST1 Nutrunner:\033[0m \033[90m[STANDBY]\033[0m";
+    }
+
+    if (skip_st2 == 1) {
+        visual_rows[5] = "  \033[36mST2 Glass Dispenser:\033[0m \033[1;35m[ BYPASS ]\033[0m";
+    } else if (glue_jet) {
+        visual_rows[5] = "  \033[36mST2 Glass Dispenser:\033[0m \033[1;36m⛲ DISPENSING ⛲\033[0m";
+    } else {
+        visual_rows[5] = "  \033[36mST2 Glass Dispenser:\033[0m \033[90m[STANDBY]\033[0m";
+    }
+
+    if (vision_ok) {
+        visual_rows[6] = "  \033[36mST2 Vision Align:\033[0m \033[1;32m[ ALIGNED OK ]\033[0m";
+    } else {
+        visual_rows[6] = "  \033[36mST2 Vision Align:\033[0m \033[90m[WAITING...]\033[0m";
+    }
+
+    if (seat_down) {
+        visual_rows[7] = "  \033[36mST3 Seat Lifter:\033[0m \033[1;33m⏬ INSERTING ⏬\033[0m";
+    } else {
+        visual_rows[7] = "  \033[36mST3 Seat Lifter:\033[0m \033[90m[RETRACTED]\033[0m";
+    }
+
+    if (pass_lamp) {
+        visual_rows[8] = "  \033[36mST4 Quality Gate:\033[0m \033[1;32m🟢 [PASS] 🟢\033[0m";
+    } else if (fail_lamp) {
+        visual_rows[8] = "  \033[36mST4 Quality Gate:\033[0m \033[1;5;31m🚨 [DEFECT NG] 🚨\033[0m";
+    } else {
+        visual_rows[8] = "  \033[36mST4 Quality Gate:\033[0m \033[90m[WAITING]\033[0m";
+    }
+
+    visual_rows[9] = "  \033[90mConveyor Track (0 ➡️ 1000):\033[0m";
+    
+    std::string track = "------------------------------";
+    int car_idx = (conveyor_pos * track.length()) / 1000;
+    if (car_idx < 0) car_idx = 0;
+    if (car_idx >= (int)track.length()) car_idx = track.length() - 1;
+    
+    std::string car_symbol = "\033[1;33m[🚘]\033[0m";
+    if (safety_estop) car_symbol = "\033[1;31m[🛑]\033[0m";
+    else if (pass_lamp) car_symbol = "\033[1;32m[🚘]\033[0m";
+    else if (fail_lamp) car_symbol = "\033[1;5;31m[💥]\033[0m";
+    
+    std::string track_visual = track.substr(0, car_idx) + car_symbol + track.substr(car_idx + 1);
+    visual_rows[10] = "  " + track_visual;
+    visual_rows[11] = "  \033[90m ST1(200)   ST2(450)   ST3(700)   ST4(900)\033[0m";
+    
+    std::stringstream metrics_ss;
+    metrics_ss << "  \033[1;37mTotal:\033[0m \033[1;36m" << total_produced << "\033[0m \033[1;37m| OK:\033[0m \033[1;32m" << ok_count << "\033[0m \033[1;37m| NG:\033[0m \033[1;31m" << ng_count << "\033[0m";
+    visual_rows[12] = metrics_ss.str();
+    visual_rows[13] = "";
+
+    std::string left_side[24];
+    left_side[0]  = " \033[1;33m[SYSTEM STATUS]\033[0m";
+    
+    std::stringstream ss_run;
+    ss_run << "  Runtime Status:     \033[1;32mACTIVE\033[0m";
+    left_side[1]  = ss_run.str();
+    
+    std::stringstream ss_scan;
+    ss_scan << "  Target Scan Rate:   \033[1;37m" << stats.target_cycle_ms << " ms\033[0m";
+    left_side[2]  = ss_scan.str();
+    
+    std::stringstream ss_exec;
+    ss_exec << "  Avg Execution Scan: \033[1;37m" << std::fixed << std::setprecision(3) << stats.avg_scan_time_ms << " ms\033[0m";
+    left_side[3]  = ss_exec.str();
+    
+    std::stringstream ss_jit;
+    ss_jit << "  Scan Timing Jitter: \033[1;37m" << stats.jitter_ms << " ms\033[0m";
+    left_side[4]  = ss_jit.str();
+    
+    std::stringstream ss_tick;
+    ss_tick << "  Total Scan Ticks:   \033[1;37m" << stats.total_ticks << "\033[0m";
+    left_side[5]  = ss_tick.str();
+    
+    std::stringstream ss_mod;
+    if (server_.isRunning()) {
+        ss_mod << "  Modbus Server:      \033[1;37mPort " << server_.getPort() << "\033[0m (" << server_.getConnectedClientsCount() << " clients)";
+    } else {
+        ss_mod << "  Modbus Server:      \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[6] = ss_mod.str();
+    
+    std::stringstream ss_s7;
+    if (s7_server_.isRunning()) {
+        ss_s7 << "  Siemens S7 Server:  \033[1;37mPort " << s7_server_.getPort() << "\033[0m (" << s7_server_.getClientsCount() << " clients)";
+    } else {
+        ss_s7 << "  Siemens S7 Server:  \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[7] = ss_s7.str();
+    
+    std::stringstream ss_mc;
+    if (mc_server_.isRunning()) {
+        ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
+    } else {
+        ss_mc << "  Mitsubishi MC:      \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[8] = ss_mc.str();
+    
+    std::stringstream ss_xgt;
+    if (xgt_server_.isRunning()) {
+        ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    } else {
+        ss_xgt << "  LS Electric XGT:    \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[9] = ss_xgt.str();
+    
+    left_side[10] = " \033[90m-----------------------------------------------\033[0m";
+    left_side[11] = " \033[1;33m[PLC REGISTER MAP (DESCRIPTIVE)]\033[0m";
+    
+    std::stringstream ss_ix00;
+    ss_ix00 << "  %IX0.0 Auto Mode Switch  : " << (auto_mode ? "\033[1;32m[ AUTO ]\033[0m" : "\033[1;30m[MANUAL]\033[0m");
+    left_side[12] = ss_ix00.str();
+    
+    std::stringstream ss_ix01;
+    ss_ix01 << "  %IX0.1 Cockpit Arrived   : " << (st1_arrived ? "\033[1;32m[ ARR  ]\033[0m" : "\033[1;30m[ WAIT ]\033[0m");
+    left_side[13] = ss_ix01.str();
+
+    std::stringstream ss_ix02;
+    ss_ix02 << "  %IX0.2 Glass Arrived     : " << (st2_arrived ? "\033[1;32m[ ARR  ]\033[0m" : "\033[1;30m[ WAIT ]\033[0m");
+    left_side[14] = ss_ix02.str();
+
+    std::stringstream ss_ix03;
+    ss_ix03 << "  %IX0.3 Seat Arrived      : " << (st3_arrived ? "\033[1;32m[ ARR  ]\033[0m" : "\033[1;30m[ WAIT ]\033[0m");
+    left_side[15] = ss_ix03.str();
+    
+    std::stringstream ss_qx00;
+    ss_qx00 << "  %QX0.0 Conveyor Run      : " << (conveyor_run ? "\033[1;32m[ RUNNING ]\033[0m" : "\033[1;30m[ STOPPED ]\033[0m");
+    left_side[16] = ss_qx00.str();
+    
+    std::stringstream ss_qx02;
+    ss_qx02 << "  %QX0.2 Nutrunner Active  : " << (bolt_active ? "\033[1;32m[ BOLTING ]\033[0m" : "\033[1;30m[STANDBY  ]\033[0m");
+    left_side[17] = ss_qx02.str();
+    
+    std::stringstream ss_iw0;
+    ss_iw0 << "  %IW0   Conveyor Position : \033[1;36m" << std::setw(4) << conveyor_pos << " mm\033[0m";
+    left_side[18] = ss_iw0.str();
+    
+    std::stringstream ss_iw1;
+    ss_iw1 << "  %IW1   Bolting Torque    : \033[1;36m" << std::fixed << std::setprecision(1) << (torque_val / 10.0) << " Nm\033[0m";
+    left_side[19] = ss_iw1.str();
+
+    std::stringstream ss_iw2;
+    ss_iw2 << "  %IW2   Glass Press Force : \033[1;36m" << force_val << " N\033[0m";
+    left_side[20] = ss_iw2.str();
+
+    std::stringstream ss_iw3;
+    ss_iw3 << "  %IW3   Dispenser Temp    : \033[1;36m" << temp_val << " °C\033[0m";
+    left_side[21] = ss_iw3.str();
+    
+    std::stringstream ss_mw0;
+    ss_mw0 << "  %MW0   Total Produced    : \033[1;35m" << std::setw(4) << total_produced << "\033[0m";
+    left_side[22] = ss_mw0.str();
+    
+    std::stringstream ss_mw3;
+    ss_mw3 << "  %MW3   Torque Setpoint   : \033[1;35m" << std::fixed << std::setprecision(1) << (torque_setpoint / 10.0) << " Nm\033[0m";
+    left_side[23] = ss_mw3.str();
+
+    for (int i = 0; i < 24; ++i) {
+        if (i < 14) {
+            ss << padString(left_side[i], 45) << visual_rows[i];
+        } else {
+            ss << left_side[i];
+        }
+        ss << "\n";
+    }
+
+    ss << "\033[1;36m================================================================================\033[0m\n";
+    ss << " \033[1;33m[INTERACTIVE CONTROLS]\033[0m\n";
+    ss << "  - \033[1;37m[I]\033[0m Toggle Auto Run (%IX0.0)      - \033[1;37m[A]\033[0m Increase Setpoint (%MW3) [+5.0 Nm]\n";
+    ss << "  - \033[1;31m[Q]\033[0m Graceful Shutdown and Exit       - \033[1;37m[Z]\033[0m Decrease Setpoint (%MW3) [-5.0 Nm]\n";
     ss << "\033[1;36m================================================================================\033[0m\n";
 
     std::cout << ss.str() << std::flush;
