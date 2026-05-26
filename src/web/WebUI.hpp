@@ -621,6 +621,9 @@ const std::string INDEX_HTML = R"HTML(
         <button class="tab-btn active" id="btn-configurator" onclick="switchTab('configurator')">
             <span>⚙️</span> Configurator
         </button>
+        <button class="tab-btn" id="btn-memory" onclick="switchTab('memory')">
+            <span>🔍</span> Memory Watcher
+        </button>
         <button class="tab-btn" id="btn-usage" onclick="switchTab('usage')">
             <span>📖</span> Usage & Guide
         </button>
@@ -918,6 +921,62 @@ const std::string INDEX_HTML = R"HTML(
             </div>
         </div>
     </div> <!-- End of tab-usage -->
+
+    <!-- 3. Memory Watcher Tab Section -->
+    <div id="tab-memory" class="guide-container" style="display: none;">
+        <div class="main-container">
+            <!-- Add Watch Address Card -->
+            <div class="card">
+                <div class="card-title">🔍 실시간 메모리 감시 주소 등록</div>
+                <form id="watch-form" onsubmit="onAddWatchAddress(event)">
+                    <div class="form-group">
+                        <label for="watchAddress">감시할 PLC 메모리 주소</label>
+                        <input type="text" id="watchAddress" class="form-control" placeholder="예: MC.D.100 또는 S7.DB1.W.0" required pattern="[A-Za-z0-9_\.]+">
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3;">
+                            표기 규격: <code>PROTOCOL.AREA.INDEX</code> (닷 표기법)<br>
+                            예: <code>MC.D.100</code>, <code>S7.DB1.W.0</code>, <code>LS.W.1</code>, <code>MODBUS.HR.0</code>
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="watchDesc">설명</label>
+                        <input type="text" id="watchDesc" class="form-control" placeholder="예: 컨베이어 실시간 카운터">
+                    </div>
+
+                    <button type="submit" class="btn" style="margin-top: 0.5rem;">감시 주소 등록</button>
+                </form>
+            </div>
+
+            <!-- Live Memory Watch List Card -->
+            <div class="card" style="overflow: hidden;">
+                <div class="card-title">
+                    실시간 메모리 감시 및 제어판 (Memory Watcher)
+                    <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary);">지정 주소 500ms 실시간 폴링 및 강제 쓰기</span>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>감시 주소</th>
+                                <th>설명</th>
+                                <th>프로토콜 영역</th>
+                                <th>현재값 (실시간)</th>
+                                <th style="width: 200px;">강제 제어 (Force Write)</th>
+                                <th style="width: 50px;">삭제</th>
+                            </tr>
+                        </thead>
+                        <tbody id="watch-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                                    등록된 실시간 감시 주소가 없습니다. 왼쪽 양식을 통해 주소를 등록해 주세요.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div> <!-- End of tab-memory -->
 
     <div id="toast-container"></div>
 
@@ -1418,31 +1477,178 @@ const std::string INDEX_HTML = R"HTML(
             }
         }
 
+        // Memory Watcher Data Management
+        let watchList = [];
+
+        // Load Watch List from localStorage
+        function loadWatchList() {
+            const stored = localStorage.getItem("vplc_watch_list");
+            if (stored) {
+                try {
+                    watchList = JSON.parse(stored);
+                } catch(e) {
+                    watchList = [];
+                }
+            } else {
+                // Default watch items
+                watchList = [
+                    { address: "MC.D.0", description: "Mitsubishi D0 (Word)" },
+                    { address: "S7.DB1.W.0", description: "Siemens DB1.DBW0" },
+                    { address: "LS.W.1", description: "LS Electric %MW1 (Target)" }
+                ];
+                saveWatchListToStore();
+            }
+            rebuildWatchTable();
+        }
+
+        function saveWatchListToStore() {
+            localStorage.setItem("vplc_watch_list", JSON.stringify(watchList));
+        }
+
+        function onAddWatchAddress(e) {
+            e.preventDefault();
+            const address = document.getElementById("watchAddress").value.trim().toUpperCase();
+            const description = document.getElementById("watchDesc").value.trim();
+
+            if (watchList.some(item => item.address === address)) {
+                showToast("이미 등록된 감시 주소입니다.", "error");
+                return;
+            }
+
+            watchList.push({ address, description });
+            saveWatchListToStore();
+            document.getElementById("watch-form").reset();
+            rebuildWatchTable();
+            showToast("감시 주소가 등록되었습니다.", "success");
+            fetchWatchValues();
+        }
+
+        function onDeleteWatch(address) {
+            watchList = watchList.filter(item => item.address !== address);
+            saveWatchListToStore();
+            rebuildWatchTable();
+            showToast("감시 주소가 삭제되었습니다.", "success");
+        }
+
+        function rebuildWatchTable() {
+            const tbody = document.getElementById("watch-table-body");
+            if (watchList.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                            등록된 실시간 감시 주소가 없습니다. 왼쪽 양식을 통해 주소를 등록해 주세요.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = watchList.map(item => {
+                const parts = item.address.split('.');
+                const proto = parts[0] || "-";
+                const area = parts[1] || "-";
+                const idx = parts[2] || "-";
+                return `
+                    <tr id="watch-row-${item.address}">
+                        <td style="font-weight: 700; color: var(--accent-cyan); font-family: monospace;">${item.address}</td>
+                        <td style="color: var(--text-secondary); font-size: 0.85rem;">${item.description || '-'}</td>
+                        <td><span class="badge badge-type">${proto} (${area})</span></td>
+                        <td><span id="watch-val-${item.address}" style="font-weight: 700; font-family: monospace;">-</span></td>
+                        <td>
+                            <div class="force-write-container">
+                                <input type="number" class="form-control write-input" id="watch-input-${item.address}" value="0" style="width: 100px;">
+                                <button class="btn-write" onclick="onForceWatchWrite('${item.address}')">제어</button>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn-delete" onclick="onDeleteWatch('${item.address}')">
+                                <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function fetchWatchValues() {
+            if (watchList.length === 0) return;
+            for (const item of watchList) {
+                try {
+                    const response = await fetch(`/api/memory/read?address=${encodeURIComponent(item.address)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const valSpan = document.getElementById(`watch-val-${item.address}`);
+                        if (valSpan) {
+                            valSpan.textContent = data.value;
+                            valSpan.style.color = data.value !== 0 ? "var(--accent-emerald)" : "var(--text-secondary)";
+                        }
+                    }
+                } catch(e) {
+                    console.error("Failed to read watcher value:", e);
+                }
+            }
+        }
+
+        async function onForceWatchWrite(address) {
+            const inputVal = parseInt(document.getElementById(`watch-input-${address}`).value) || 0;
+            try {
+                const response = await fetch('/api/memory/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address, value: inputVal })
+                });
+                if (response.ok) {
+                    showToast(`주소 [${address}] 강제 쓰기 (${inputVal}) 성공!`, "success");
+                    fetchWatchValues();
+                } else {
+                    const errMsg = await response.text();
+                    showToast("강제 쓰기 실패: " + errMsg, "error");
+                }
+            } catch(e) {
+                showToast("네트워크 오류 발생", "error");
+            }
+        }
+
         // Tab Switch Logic
         function switchTab(tabName) {
             const btnConfig = document.getElementById("btn-configurator");
+            const btnMemory = document.getElementById("btn-memory");
             const btnUsage = document.getElementById("btn-usage");
             const tabConfig = document.getElementById("tab-configurator");
+            const tabMemory = document.getElementById("tab-memory");
             const tabUsage = document.getElementById("tab-usage");
+
+            btnConfig.classList.remove("active");
+            btnMemory.classList.remove("active");
+            btnUsage.classList.remove("active");
 
             if (tabName === 'configurator') {
                 btnConfig.classList.add("active");
-                btnUsage.classList.remove("active");
                 tabConfig.style.display = "contents";
+                tabMemory.style.display = "none";
                 tabUsage.style.display = "none";
+            } else if (tabName === 'memory') {
+                btnMemory.classList.add("active");
+                tabConfig.style.display = "none";
+                tabMemory.style.display = "flex";
+                tabUsage.style.display = "none";
+                fetchWatchValues();
             } else {
-                btnConfig.classList.remove("active");
                 btnUsage.classList.add("active");
                 tabConfig.style.display = "none";
+                tabMemory.style.display = "none";
                 tabUsage.style.display = "flex";
             }
         }
 
         // Start polling loop
+        loadWatchList();
         fetchTags();
         fetchSystemStatus();
         fetchMappings();
         setInterval(fetchTags, 500);
+        setInterval(fetchWatchValues, 500);
         setInterval(fetchSystemStatus, 1000);
     </script>
 </body>

@@ -157,6 +157,54 @@ bool WebServer::start() {
         }
     });
 
+    server_.Get("/api/memory/read", [this](const httplib::Request& req, httplib::Response& res) {
+        try {
+            std::string address = req.get_param_value("address");
+            if (address.empty()) {
+                res.status = 400;
+                res.set_content("Missing parameter 'address'", "text/plain");
+                return;
+            }
+
+            auto& memory = tag_manager_.getMemory();
+            auto ref = memory.parseAddress(address);
+            uint16_t val = memory.readValue(ref);
+
+            json j;
+            j["address"] = address;
+            j["value"] = val;
+            res.set_content(j.dump(), "application/json; charset=utf-8");
+        } catch (const std::exception& e) {
+            res.status = 400;
+            res.set_content(std::string("Error reading memory: ") + e.what(), "text/plain");
+        }
+    });
+
+    server_.Post("/api/memory/write", [this](const httplib::Request& req, httplib::Response& res) {
+        try {
+            auto body = json::parse(req.body);
+            std::string address = body.value("address", "");
+            int val_int = body.value("value", -1);
+
+            if (address.empty() || val_int < 0) {
+                res.status = 400;
+                res.set_content("Missing 'address' or 'value' fields.", "text/plain");
+                return;
+            }
+
+            auto& memory = tag_manager_.getMemory();
+            auto ref = memory.parseAddress(address);
+            memory.writeValue(ref, static_cast<uint16_t>(val_int));
+            memory.syncMappings();
+
+            res.status = 200;
+            res.set_content("Success", "text/plain");
+        } catch (const std::exception& e) {
+            res.status = 400;
+            res.set_content(std::string("Error writing memory: ") + e.what(), "text/plain");
+        }
+    });
+
     server_.Get("/api/system", [this](const httplib::Request&, httplib::Response& res) {
         json j;
         j["mode"] = manual_mode_ ? "MANUAL" : "AUTO";
