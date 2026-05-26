@@ -115,6 +115,48 @@ bool WebServer::start() {
         }
     });
 
+    server_.Get("/api/mappings", [this](const httplib::Request&, httplib::Response& res) {
+        std::ifstream file("mappings.json");
+        if (!file.is_open()) {
+            res.set_content("[]", "application/json; charset=utf-8");
+            return;
+        }
+        std::stringstream ss;
+        ss << file.rdbuf();
+        res.set_content(ss.str(), "application/json; charset=utf-8");
+    });
+
+    server_.Post("/api/mappings", [this](const httplib::Request& req, httplib::Response& res) {
+        try {
+            auto body = json::parse(req.body);
+            if (!body.is_array()) {
+                res.status = 400;
+                res.set_content("Mappings must be a JSON array.", "text/plain");
+                return;
+            }
+
+            std::ofstream file("mappings.json");
+            if (!file.is_open()) {
+                res.status = 500;
+                res.set_content("Failed to open mappings.json for writing.", "text/plain");
+                return;
+            }
+            file << body.dump(4);
+            file.close();
+
+            if (tag_manager_.getMemory().loadMappings("mappings.json")) {
+                res.status = 200;
+                res.set_content("Success", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content("Failed to parse some mappings, but saved file.", "text/plain");
+            }
+        } catch (const std::exception& e) {
+            res.status = 400;
+            res.set_content(std::string("JSON Parsing Error: ") + e.what(), "text/plain");
+        }
+    });
+
     server_.Get("/api/system", [this](const httplib::Request&, httplib::Response& res) {
         json j;
         j["mode"] = manual_mode_ ? "MANUAL" : "AUTO";

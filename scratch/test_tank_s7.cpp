@@ -25,7 +25,7 @@ int main() {
     }
 
     // 2. Set Remote Port to 1020 (bypass port)
-    uint16_t remote_port = 1020;
+    uint16_t remote_port = 1030;
     int res = Cli_SetParam(client, p_u16_RemotePort, &remote_port);
     if (res != 0) {
         std::cerr << "[Error] Failed to set client remote port param: " << res << std::endl;
@@ -70,11 +70,11 @@ int main() {
     assert(val1 == 500);
     std::cout << "  [SUCCESS] Test 1 Passed." << std::endl;
 
-    // --- TEST 2: Write DB1.DBW0 (%MW0) to 750 ---
+    // --- TEST 2: Write DB1.DBW4 (%MW2) to 750 ---
     buffer[0] = 0x02;
     buffer[1] = 0xEE;
-    printHex("\n[Test 2] Write DB1.DBW0 Request bytes", buffer, 2);
-    res = Cli_DBWrite(client, 1, 0, 2, buffer);
+    printHex("\n[Test 2] Write DB1.DBW4 Request bytes", buffer, 2);
+    res = Cli_DBWrite(client, 1, 4, 2, buffer);
     if (res != 0) {
         char err_text[1024];
         Cli_ErrorText(res, err_text, sizeof(err_text));
@@ -83,13 +83,13 @@ int main() {
         Cli_Destroy(&client);
         return 1;
     }
-    std::cout << "  -> Written 750 to DB1.DBW0." << std::endl;
+    std::cout << "  -> Written 750 to DB1.DBW4." << std::endl;
     std::cout << "  [SUCCESS] Test 2 Passed." << std::endl;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    // --- TEST 3: Read DB1.DBW0 (%MW0) again to verify ---
-    res = Cli_DBRead(client, 1, 0, 2, buffer);
+    // --- TEST 3: Read DB1.DBW4 (%MW2) again to verify ---
+    res = Cli_DBRead(client, 1, 4, 2, buffer);
     if (res != 0) {
         char err_text[1024];
         Cli_ErrorText(res, err_text, sizeof(err_text));
@@ -98,11 +98,11 @@ int main() {
         Cli_Destroy(&client);
         return 1;
     }
-    printHex("\n[Test 3] Read DB1.DBW0 Response bytes", buffer, 2);
+    printHex("\n[Test 3] Read DB1.DBW4 Response bytes", buffer, 2);
 
-    val0 = (static_cast<uint16_t>(buffer[0]) << 8) | buffer[1];
-    std::cout << "  -> DB1.DBW0 (%MW0) read back: " << val0 << " (Expected: >= 750)" << std::endl;
-    assert(val0 >= 750);
+    val2 = (static_cast<uint16_t>(buffer[0]) << 8) | buffer[1];
+    std::cout << "  -> DB1.DBW4 (%MW2) read back: " << val2 << " (Expected: >= 750)" << std::endl;
+    assert(val2 >= 750);
     std::cout << "  [SUCCESS] Test 3 Passed." << std::endl;
 
     Cli_Disconnect(client);

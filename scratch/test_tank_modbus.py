@@ -9,7 +9,7 @@ def test_vplc():
     print("=== Starting Active vPLC Modbus TCP Protocol Test ===")
     
     server_ip = "127.0.0.1"
-    server_port = 5020
+    server_port = 5030
     
     # 1. Connect to vPLC
     try:

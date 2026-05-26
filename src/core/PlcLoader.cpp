@@ -77,6 +77,7 @@ void PlcLoader::runLogic(unsigned long tick) {
 }
 
 void PlcLoader::syncInputsToDll() {
+    memory_.syncMappings();
     for (auto& binding : bindings_) {
         // PLC Memory (Control outputs/parameters) -> DLL Logic Actuators
         if (binding.type == VarBinding::Type::COIL) {
@@ -144,6 +145,7 @@ void PlcLoader::syncOutputsFromDll() {
             }
         }
     }
+    memory_.syncMappings();
 }
 
 void PlcLoader::resolveBindings() {

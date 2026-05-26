@@ -9,7 +9,7 @@ def test_mc_server():
     print("=== Starting Active vPLC Mitsubishi MC Protocol Test ===")
     
     server_ip = "127.0.0.1"
-    server_port = 5011
+    server_port = 5021
     
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

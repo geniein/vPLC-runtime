@@ -42,9 +42,11 @@ private:
     std::vector<uint8_t> pe_buffer_;  // %I - Inputs (256 bytes = 2048 bits)
     std::vector<uint8_t> pa_buffer_;  // %Q - Outputs (256 bytes = 2048 bits)
     std::vector<uint8_t> db1_buffer_; // DB1 - Data Block (2048 bytes = 1024 registers)
+    std::vector<uint8_t> db2_buffer_; // DB2 - Data Block (2048 bytes = 1024 registers)
 
     // Shadow buffers for detecting S7 Client write actions
     std::vector<uint8_t> db1_shadow_buffer_;
+    std::vector<uint8_t> db2_shadow_buffer_;
 
     // Helper functions for big-endian conversion
     static uint16_t swapBytes(uint16_t val) {

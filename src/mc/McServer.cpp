@@ -8,6 +8,26 @@
 #include <algorithm>
 #include <mutex>
 
+static std::string getMCWordAreaName(uint8_t code) {
+    if (code == 0xA8) return "D";
+    if (code == 0xB4) return "W";
+    if (code == 0xAF) return "R";
+    if (code == 0xB0) return "ZR";
+    if (code == 0xA9) return "SD";
+    return "";
+}
+
+static std::string getMCBitAreaName(uint8_t code) {
+    if (code == 0x9C) return "X";
+    if (code == 0x9D) return "Y";
+    if (code == 0x90) return "M";
+    if (code == 0x92) return "L";
+    if (code == 0xA0) return "B";
+    if (code == 0x93) return "F";
+    if (code == 0x91) return "SM";
+    return "";
+}
+
 McServer::McServer(PlcMemory& memory, const std::string& ip_address, uint16_t port)
     : memory_(memory),
       ip_address_(ip_address),
@@ -241,13 +261,14 @@ std::vector<uint8_t> McServer::processRequest(const std::vector<uint8_t>& reques
     if (command == 0x0401) {
         // --- BATCH READ ---
         if (subcommand == 0x0000) {
-            // 1. Word unit read (D registers %MW)
-            if (device_code == 0xA8) { // Device D
+            // 1. Word unit read
+            std::string area = getMCWordAreaName(device_code);
+            if (!area.empty()) {
                 resp_data.resize(2 + points * 2);
                 writeUint16LE(&resp_data[0], 0x0000); // End Code: Success
 
                 for (uint16_t i = 0; i < points; ++i) {
-                    uint16_t val = memory_.readHoldingRegister(start_addr + i);
+                    uint16_t val = memory_.readMCWord(area, static_cast<uint16_t>(start_addr + i));
                     writeUint16LE(&resp_data[2 + i * 2], val);
                 }
             } else {
@@ -255,19 +276,15 @@ std::vector<uint8_t> McServer::processRequest(const std::vector<uint8_t>& reques
             }
         } 
         else if (subcommand == 0x0001) {
-            // 2. Bit unit read (X registers %IX, Y registers %QX)
-            if (device_code == 0x9C || device_code == 0x9D) { // X or Y
+            // 2. Bit unit read
+            std::string area = getMCBitAreaName(device_code);
+            if (!area.empty()) {
                 size_t bit_bytes = (points + 1) / 2;
                 resp_data.resize(2 + bit_bytes, 0);
                 writeUint16LE(&resp_data[0], 0x0000); // End Code: Success
 
                 for (uint16_t i = 0; i < points; ++i) {
-                    bool bit_val = false;
-                    if (device_code == 0x9C) {
-                        bit_val = memory_.readDiscreteInput(start_addr + i);
-                    } else {
-                        bit_val = memory_.readCoil(start_addr + i);
-                    }
+                    bool bit_val = memory_.readMCBit(area, static_cast<uint16_t>(start_addr + i));
 
                     // Pack: High 4 bits for first point, Low 4 bits for second point
                     size_t byte_idx = i / 2;
@@ -287,15 +304,16 @@ std::vector<uint8_t> McServer::processRequest(const std::vector<uint8_t>& reques
     else if (command == 0x1401) {
         // --- BATCH WRITE ---
         if (subcommand == 0x0000) {
-            // 1. Word unit write (D registers %MW)
-            if (device_code == 0xA8) {
+            // 1. Word unit write
+            std::string area = getMCWordAreaName(device_code);
+            if (!area.empty()) {
                 if (request.size() < 21 + points * 2) {
                     return makeErrorResponse(0xC051);
                 }
 
                 for (uint16_t i = 0; i < points; ++i) {
                     uint16_t val = readUint16LE(&request[21 + i * 2]);
-                    memory_.writeHoldingRegister(start_addr + i, val);
+                    memory_.writeMCWord(area, static_cast<uint16_t>(start_addr + i), val);
                 }
 
                 resp_data.resize(2);
@@ -305,8 +323,9 @@ std::vector<uint8_t> McServer::processRequest(const std::vector<uint8_t>& reques
             }
         } 
         else if (subcommand == 0x0001) {
-            // 2. Bit unit write (X registers %IX, Y registers %QX)
-            if (device_code == 0x9C || device_code == 0x9D) {
+            // 2. Bit unit write
+            std::string area = getMCBitAreaName(device_code);
+            if (!area.empty()) {
                 size_t bit_bytes = (points + 1) / 2;
                 if (request.size() < 21 + bit_bytes) {
                     return makeErrorResponse(0xC051);
@@ -323,11 +342,7 @@ std::vector<uint8_t> McServer::processRequest(const std::vector<uint8_t>& reques
                         bit_val = (byte_val & 0x0F) != 0;
                     }
 
-                    if (device_code == 0x9C) {
-                        memory_.writeDiscreteInput(start_addr + i, bit_val);
-                    } else {
-                        memory_.writeCoil(start_addr + i, bit_val);
-                    }
+                    memory_.writeMCBit(area, static_cast<uint16_t>(start_addr + i), bit_val);
                 }
 
                 resp_data.resize(2);

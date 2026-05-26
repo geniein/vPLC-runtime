@@ -607,6 +607,26 @@ const std::string INDEX_HTML = R"HTML(
         </div>
     </div>
 
+    <!-- Dynamic Mapping Editor Card -->
+    <div class="card" style="margin-top: 2rem;">
+        <div class="card-title">
+            실시간 C++ 메모리 교차 매핑 엔진 (mappings.json)
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn-write" onclick="loadMappingPreset('mirror')">기본 양방향 미러링</button>
+                <button class="btn-write" onclick="loadMappingPreset('s7_mc')">S7 ➡️ MC</button>
+                <button class="btn-write" onclick="loadMappingPreset('mc_ls')">MC ➡️ LS</button>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                Modbus, Siemens S7, Mitsubishi MC, LS Electric XGT의 모든 고유 메모리 영역 간에 <strong>양방향 실시간 미러링 및 교차 매핑</strong>을 수행합니다. 
+                좌측 Presets 버튼을 누르거나 아래 JSON을 직접 수정한 후 <strong>"매핑 규칙 실시간 핫로드(Hot-Reload)"</strong>를 누르면 vPLC 코어에 즉시 반영됩니다.
+            </p>
+            <textarea id="mapping-json" class="form-control" style="font-family: monospace; height: 350px; font-size: 0.85rem; line-height: 1.5; background: rgba(0,0,0,0.3); color: #06b6d4; border-color: rgba(6, 182, 212, 0.35); resize: vertical;"></textarea>
+            <button class="btn" onclick="saveMappings()">매핑 규칙 실시간 핫로드 (Hot-Reload)</button>
+        </div>
+    </div>
+
     <div id="toast-container"></div>
 
     <script>
@@ -944,9 +964,172 @@ const std::string INDEX_HTML = R"HTML(
             onForceWrite(name, inputVal);
         }
 
+        // Presets data
+        const presets = {
+            mirror: [
+                { "src": "MODBUS.IR.0", "dst": "S7.DB1.W.64" },
+                { "src": "MODBUS.DI.0", "dst": "S7.PE.0" },
+                { "src": "MODBUS.DI.1", "dst": "S7.PE.1" },
+                { "src": "MODBUS.DI.2", "dst": "S7.PE.2" },
+                { "src": "MODBUS.DI.3", "dst": "S7.PE.3" },
+                { "src": "MODBUS.DI.4", "dst": "S7.PE.4" },
+                { "src": "MODBUS.DI.5", "dst": "S7.PE.5" },
+                { "src": "MODBUS.DI.6", "dst": "S7.PE.6" },
+                { "src": "MODBUS.DI.7", "dst": "S7.PE.7" },
+                { "src": "MODBUS.DI.0", "dst": "MC.X.0" },
+                { "src": "MODBUS.DI.1", "dst": "MC.X.1" },
+                { "src": "MODBUS.DI.2", "dst": "MC.X.2" },
+                { "src": "MODBUS.DI.3", "dst": "MC.X.3" },
+                { "src": "MODBUS.DI.4", "dst": "MC.X.4" },
+                { "src": "MODBUS.DI.5", "dst": "MC.X.5" },
+                { "src": "MODBUS.DI.6", "dst": "MC.X.6" },
+                { "src": "MODBUS.DI.7", "dst": "MC.X.7" },
+                { "src": "MODBUS.DI.0", "dst": "LS.I.0" },
+                { "src": "MODBUS.DI.1", "dst": "LS.I.1" },
+                { "src": "MODBUS.DI.2", "dst": "LS.I.2" },
+                { "src": "MODBUS.DI.3", "dst": "LS.I.3" },
+                { "src": "MODBUS.DI.4", "dst": "LS.I.4" },
+                { "src": "MODBUS.DI.5", "dst": "LS.I.5" },
+                { "src": "MODBUS.DI.6", "dst": "LS.I.6" },
+                { "src": "MODBUS.DI.7", "dst": "LS.I.7" },
+                { "src": "MODBUS.COIL.0", "dst": "S7.PA.0" },
+                { "src": "MODBUS.COIL.1", "dst": "S7.PA.1" },
+                { "src": "MODBUS.COIL.2", "dst": "S7.PA.2" },
+                { "src": "MODBUS.COIL.3", "dst": "S7.PA.3" },
+                { "src": "MODBUS.COIL.4", "dst": "S7.PA.4" },
+                { "src": "MODBUS.COIL.5", "dst": "S7.PA.5" },
+                { "src": "MODBUS.COIL.6", "dst": "S7.PA.6" },
+                { "src": "MODBUS.COIL.7", "dst": "S7.PA.7" },
+                { "src": "MODBUS.COIL.0", "dst": "MC.Y.0" },
+                { "src": "MODBUS.COIL.1", "dst": "MC.Y.1" },
+                { "src": "MODBUS.COIL.2", "dst": "MC.Y.2" },
+                { "src": "MODBUS.COIL.3", "dst": "MC.Y.3" },
+                { "src": "MODBUS.COIL.4", "dst": "MC.Y.4" },
+                { "src": "MODBUS.COIL.5", "dst": "MC.Y.5" },
+                { "src": "MODBUS.COIL.6", "dst": "MC.Y.6" },
+                { "src": "MODBUS.COIL.7", "dst": "MC.Y.7" },
+                { "src": "MODBUS.COIL.0", "dst": "LS.Q.0" },
+                { "src": "MODBUS.COIL.1", "dst": "LS.Q.1" },
+                { "src": "MODBUS.COIL.2", "dst": "LS.Q.2" },
+                { "src": "MODBUS.COIL.3", "dst": "LS.Q.3" },
+                { "src": "MODBUS.COIL.4", "dst": "LS.Q.4" },
+                { "src": "MODBUS.COIL.5", "dst": "LS.Q.5" },
+                { "src": "MODBUS.COIL.6", "dst": "LS.Q.6" },
+                { "src": "MODBUS.COIL.7", "dst": "LS.Q.7" },
+                { "src": "MODBUS.COIL.0", "dst": "LS.M.0" },
+                { "src": "MODBUS.COIL.1", "dst": "LS.M.1" },
+                { "src": "MODBUS.COIL.2", "dst": "LS.M.2" },
+                { "src": "MODBUS.COIL.3", "dst": "LS.M.3" },
+                { "src": "MODBUS.COIL.4", "dst": "LS.M.4" },
+                { "src": "MODBUS.COIL.5", "dst": "LS.M.5" },
+                { "src": "MODBUS.COIL.6", "dst": "LS.M.6" },
+                { "src": "MODBUS.COIL.7", "dst": "LS.M.7" },
+                { "src": "MODBUS.HR.0", "dst": "S7.DB1.W.0" },
+                { "src": "MODBUS.HR.1", "dst": "S7.DB1.W.1" },
+                { "src": "MODBUS.HR.2", "dst": "S7.DB1.W.2" },
+                { "src": "MODBUS.HR.3", "dst": "S7.DB1.W.3" },
+                { "src": "MODBUS.HR.4", "dst": "S7.DB1.W.4" },
+                { "src": "MODBUS.HR.5", "dst": "S7.DB1.W.5" },
+                { "src": "MODBUS.HR.6", "dst": "S7.DB1.W.6" },
+                { "src": "MODBUS.HR.7", "dst": "S7.DB1.W.7" },
+                { "src": "MODBUS.HR.0", "dst": "MC.D.0" },
+                { "src": "MODBUS.HR.1", "dst": "MC.D.1" },
+                { "src": "MODBUS.HR.2", "dst": "MC.D.2" },
+                { "src": "MODBUS.HR.3", "dst": "MC.D.3" },
+                { "src": "MODBUS.HR.4", "dst": "MC.D.4" },
+                { "src": "MODBUS.HR.5", "dst": "MC.D.5" },
+                { "src": "MODBUS.HR.6", "dst": "MC.D.6" },
+                { "src": "MODBUS.HR.7", "dst": "MC.D.7" },
+                { "src": "MODBUS.HR.0", "dst": "LS.W.0" },
+                { "src": "MODBUS.HR.1", "dst": "LS.W.1" },
+                { "src": "MODBUS.HR.2", "dst": "LS.W.2" },
+                { "src": "MODBUS.HR.3", "dst": "LS.W.3" },
+                { "src": "MODBUS.HR.4", "dst": "LS.W.4" },
+                { "src": "MODBUS.HR.5", "dst": "LS.W.5" },
+                { "src": "MODBUS.HR.6", "dst": "LS.W.6" },
+                { "src": "MODBUS.HR.7", "dst": "LS.W.7" }
+            ],
+            s7_mc: [
+                { "src": "S7.PE.0", "dst": "MC.Y.0" },
+                { "src": "S7.PE.1", "dst": "MC.Y.1" },
+                { "src": "S7.PE.2", "dst": "MC.Y.2" },
+                { "src": "S7.PE.3", "dst": "MC.Y.3" },
+                { "src": "S7.PA.0", "dst": "MC.X.0" },
+                { "src": "S7.PA.1", "dst": "MC.X.1" },
+                { "src": "S7.PA.2", "dst": "MC.X.2" },
+                { "src": "S7.PA.3", "dst": "MC.X.3" },
+                { "src": "S7.DB1.W.0", "dst": "MC.D.0" },
+                { "src": "S7.DB1.W.1", "dst": "MC.D.1" },
+                { "src": "S7.DB1.W.2", "dst": "MC.D.2" },
+                { "src": "S7.DB1.W.3", "dst": "MC.D.3" }
+            ],
+            mc_ls: [
+                { "src": "MC.X.0", "dst": "LS.I.0" },
+                { "src": "MC.X.1", "dst": "LS.I.1" },
+                { "src": "MC.X.2", "dst": "LS.I.2" },
+                { "src": "MC.X.3", "dst": "LS.I.3" },
+                { "src": "MC.Y.0", "dst": "LS.Q.0" },
+                { "src": "MC.Y.1", "dst": "LS.Q.1" },
+                { "src": "MC.Y.2", "dst": "LS.Q.2" },
+                { "src": "MC.Y.3", "dst": "LS.Q.3" },
+                { "src": "MC.D.0", "dst": "LS.W.0" },
+                { "src": "MC.D.1", "dst": "LS.W.1" },
+                { "src": "MC.D.2", "dst": "LS.W.2" },
+                { "src": "MC.D.3", "dst": "LS.W.3" }
+            ]
+        };
+
+        function loadMappingPreset(presetName) {
+            if (presets[presetName]) {
+                document.getElementById("mapping-json").value = JSON.stringify(presets[presetName], null, 4);
+                showToast(`${presetName === 'mirror' ? '기본 양방향 미러링' : presetName === 's7_mc' ? 'S7 ➡️ MC' : 'MC ➡️ LS'} 프리셋을 불러왔습니다. 하단 버튼을 클릭해 핫로드 하세요.`, "info");
+            }
+        }
+
+        async function fetchMappings() {
+            try {
+                const response = await fetch('/api/mappings');
+                if (response.ok) {
+                    const mappings = await response.json();
+                    document.getElementById("mapping-json").value = JSON.stringify(mappings, null, 4);
+                }
+            } catch (err) {
+                console.error("Failed to fetch mappings:", err);
+            }
+        }
+
+        async function saveMappings() {
+            const rawJson = document.getElementById("mapping-json").value;
+            let mappingsObj;
+            try {
+                mappingsObj = JSON.parse(rawJson);
+            } catch (err) {
+                showToast("JSON 형식이 올바르지 않습니다. 구문을 확인해 주세요.", "error");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/mappings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(mappingsObj)
+                });
+                
+                if (response.ok) {
+                    showToast("매핑 설정이 vPLC 코어에 실시간 핫로드(Hot-Reload) 되었습니다!", "success");
+                } else {
+                    const errMsg = await response.text();
+                    showToast("핫로드 실패: " + errMsg, "error");
+                }
+            } catch (err) {
+                showToast("네트워크 오류가 발생했습니다.", "error");
+            }
+        }
+
         // Start polling loop
         fetchTags();
         fetchSystemStatus();
+        fetchMappings();
         setInterval(fetchTags, 500);
         setInterval(fetchSystemStatus, 1000);
     </script>

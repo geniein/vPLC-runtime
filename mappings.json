@@ -1,0 +1,326 @@
+[
+    {
+        "dst": "S7.DB1.W.64",
+        "src": "MODBUS.IR.0"
+    },
+    {
+        "dst": "S7.PE.0",
+        "src": "MODBUS.DI.0"
+    },
+    {
+        "dst": "S7.PE.1",
+        "src": "MODBUS.DI.1"
+    },
+    {
+        "dst": "S7.PE.2",
+        "src": "MODBUS.DI.2"
+    },
+    {
+        "dst": "S7.PE.3",
+        "src": "MODBUS.DI.3"
+    },
+    {
+        "dst": "S7.PE.4",
+        "src": "MODBUS.DI.4"
+    },
+    {
+        "dst": "S7.PE.5",
+        "src": "MODBUS.DI.5"
+    },
+    {
+        "dst": "S7.PE.6",
+        "src": "MODBUS.DI.6"
+    },
+    {
+        "dst": "S7.PE.7",
+        "src": "MODBUS.DI.7"
+    },
+    {
+        "dst": "MC.X.0",
+        "src": "MODBUS.DI.0"
+    },
+    {
+        "dst": "MC.X.1",
+        "src": "MODBUS.DI.1"
+    },
+    {
+        "dst": "MC.X.2",
+        "src": "MODBUS.DI.2"
+    },
+    {
+        "dst": "MC.X.3",
+        "src": "MODBUS.DI.3"
+    },
+    {
+        "dst": "MC.X.4",
+        "src": "MODBUS.DI.4"
+    },
+    {
+        "dst": "MC.X.5",
+        "src": "MODBUS.DI.5"
+    },
+    {
+        "dst": "MC.X.6",
+        "src": "MODBUS.DI.6"
+    },
+    {
+        "dst": "MC.X.7",
+        "src": "MODBUS.DI.7"
+    },
+    {
+        "dst": "LS.I.0",
+        "src": "MODBUS.DI.0"
+    },
+    {
+        "dst": "LS.I.1",
+        "src": "MODBUS.DI.1"
+    },
+    {
+        "dst": "LS.I.2",
+        "src": "MODBUS.DI.2"
+    },
+    {
+        "dst": "LS.I.3",
+        "src": "MODBUS.DI.3"
+    },
+    {
+        "dst": "LS.I.4",
+        "src": "MODBUS.DI.4"
+    },
+    {
+        "dst": "LS.I.5",
+        "src": "MODBUS.DI.5"
+    },
+    {
+        "dst": "LS.I.6",
+        "src": "MODBUS.DI.6"
+    },
+    {
+        "dst": "LS.I.7",
+        "src": "MODBUS.DI.7"
+    },
+    {
+        "dst": "S7.PA.0",
+        "src": "MODBUS.COIL.0"
+    },
+    {
+        "dst": "S7.PA.1",
+        "src": "MODBUS.COIL.1"
+    },
+    {
+        "dst": "S7.PA.2",
+        "src": "MODBUS.COIL.2"
+    },
+    {
+        "dst": "S7.PA.3",
+        "src": "MODBUS.COIL.3"
+    },
+    {
+        "dst": "S7.PA.4",
+        "src": "MODBUS.COIL.4"
+    },
+    {
+        "dst": "S7.PA.5",
+        "src": "MODBUS.COIL.5"
+    },
+    {
+        "dst": "S7.PA.6",
+        "src": "MODBUS.COIL.6"
+    },
+    {
+        "dst": "S7.PA.7",
+        "src": "MODBUS.COIL.7"
+    },
+    {
+        "dst": "MC.Y.0",
+        "src": "MODBUS.COIL.0"
+    },
+    {
+        "dst": "MC.Y.1",
+        "src": "MODBUS.COIL.1"
+    },
+    {
+        "dst": "MC.Y.2",
+        "src": "MODBUS.COIL.2"
+    },
+    {
+        "dst": "MC.Y.3",
+        "src": "MODBUS.COIL.3"
+    },
+    {
+        "dst": "MC.Y.4",
+        "src": "MODBUS.COIL.4"
+    },
+    {
+        "dst": "MC.Y.5",
+        "src": "MODBUS.COIL.5"
+    },
+    {
+        "dst": "MC.Y.6",
+        "src": "MODBUS.COIL.6"
+    },
+    {
+        "dst": "MC.Y.7",
+        "src": "MODBUS.COIL.7"
+    },
+    {
+        "dst": "LS.Q.0",
+        "src": "MODBUS.COIL.0"
+    },
+    {
+        "dst": "LS.Q.1",
+        "src": "MODBUS.COIL.1"
+    },
+    {
+        "dst": "LS.Q.2",
+        "src": "MODBUS.COIL.2"
+    },
+    {
+        "dst": "LS.Q.3",
+        "src": "MODBUS.COIL.3"
+    },
+    {
+        "dst": "LS.Q.4",
+        "src": "MODBUS.COIL.4"
+    },
+    {
+        "dst": "LS.Q.5",
+        "src": "MODBUS.COIL.5"
+    },
+    {
+        "dst": "LS.Q.6",
+        "src": "MODBUS.COIL.6"
+    },
+    {
+        "dst": "LS.Q.7",
+        "src": "MODBUS.COIL.7"
+    },
+    {
+        "dst": "LS.M.0",
+        "src": "MODBUS.COIL.0"
+    },
+    {
+        "dst": "LS.M.1",
+        "src": "MODBUS.COIL.1"
+    },
+    {
+        "dst": "LS.M.2",
+        "src": "MODBUS.COIL.2"
+    },
+    {
+        "dst": "LS.M.3",
+        "src": "MODBUS.COIL.3"
+    },
+    {
+        "dst": "LS.M.4",
+        "src": "MODBUS.COIL.4"
+    },
+    {
+        "dst": "LS.M.5",
+        "src": "MODBUS.COIL.5"
+    },
+    {
+        "dst": "LS.M.6",
+        "src": "MODBUS.COIL.6"
+    },
+    {
+        "dst": "LS.M.7",
+        "src": "MODBUS.COIL.7"
+    },
+    {
+        "dst": "S7.DB1.W.0",
+        "src": "MODBUS.HR.0"
+    },
+    {
+        "dst": "S7.DB1.W.1",
+        "src": "MODBUS.HR.1"
+    },
+    {
+        "dst": "S7.DB1.W.2",
+        "src": "MODBUS.HR.2"
+    },
+    {
+        "dst": "S7.DB1.W.3",
+        "src": "MODBUS.HR.3"
+    },
+    {
+        "dst": "S7.DB1.W.4",
+        "src": "MODBUS.HR.4"
+    },
+    {
+        "dst": "S7.DB1.W.5",
+        "src": "MODBUS.HR.5"
+    },
+    {
+        "dst": "S7.DB1.W.6",
+        "src": "MODBUS.HR.6"
+    },
+    {
+        "dst": "S7.DB1.W.7",
+        "src": "MODBUS.HR.7"
+    },
+    {
+        "dst": "MC.D.0",
+        "src": "MODBUS.HR.0"
+    },
+    {
+        "dst": "MC.D.1",
+        "src": "MODBUS.HR.1"
+    },
+    {
+        "dst": "MC.D.2",
+        "src": "MODBUS.HR.2"
+    },
+    {
+        "dst": "MC.D.3",
+        "src": "MODBUS.HR.3"
+    },
+    {
+        "dst": "MC.D.4",
+        "src": "MODBUS.HR.4"
+    },
+    {
+        "dst": "MC.D.5",
+        "src": "MODBUS.HR.5"
+    },
+    {
+        "dst": "MC.D.6",
+        "src": "MODBUS.HR.6"
+    },
+    {
+        "dst": "MC.D.7",
+        "src": "MODBUS.HR.7"
+    },
+    {
+        "dst": "LS.W.0",
+        "src": "MODBUS.HR.0"
+    },
+    {
+        "dst": "LS.W.1",
+        "src": "MODBUS.HR.1"
+    },
+    {
+        "dst": "LS.W.2",
+        "src": "MODBUS.HR.2"
+    },
+    {
+        "dst": "LS.W.3",
+        "src": "MODBUS.HR.3"
+    },
+    {
+        "dst": "LS.W.4",
+        "src": "MODBUS.HR.4"
+    },
+    {
+        "dst": "LS.W.5",
+        "src": "MODBUS.HR.5"
+    },
+    {
+        "dst": "LS.W.6",
+        "src": "MODBUS.HR.6"
+    },
+    {
+        "dst": "LS.W.7",
+        "src": "MODBUS.HR.7"
+    }
+]

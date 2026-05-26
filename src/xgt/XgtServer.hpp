@@ -32,7 +32,7 @@ private:
     std::vector<uint8_t> processRequest(const std::vector<uint8_t>& request);
 
     // Helper to resolve string address to PlcMemory indexes
-    bool resolveAddress(const std::string& addr_str, bool& is_bit, bool& is_input, uint16_t& index, uint16_t& sub_index);
+    bool resolveAddress(const std::string& addr_str, char& area_char, bool& is_bit, uint16_t& index, uint16_t& sub_index);
 
     // Helper functions for little-endian values
     static uint16_t readUint16LE(const uint8_t* buffer) {

@@ -221,7 +221,6 @@ void XgtServer::handleClient(int client_fd, std::string client_ip) {
 }
 
 std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& request) {
-    // Basic length verification: header (20) + Cmd (2) + DataType (2) + Reserved (2) + Blocks (2) + VarLen (2) = 30 bytes
     if (request.size() < 30) {
         std::vector<uint8_t> err_resp(30, 0);
         std::memcpy(err_resp.data(), "LSIS-XGT\x00\x00", 10);
@@ -249,12 +248,12 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
     // Extract ASCII variable name
     std::string var_name(reinterpret_cast<const char*>(&request[30]), var_len);
     
-    // Resolve address to flat PlcMemory indexes
+    // Resolve address to LS native areas
+    char area_char = 0;
     bool is_bit = false;
-    bool is_input = false;
     uint16_t index = 0;
     uint16_t sub_index = 0;
-    bool resolve_success = resolveAddress(var_name, is_bit, is_input, index, sub_index);
+    bool resolve_success = resolveAddress(var_name, area_char, is_bit, index, sub_index);
 
     std::vector<uint8_t> resp_data;
     uint16_t error_status = 0x0000;
@@ -270,23 +269,14 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
                 
                 // Read bit value
                 bool bit_val = false;
-                // If it is multi-dot like %IX0.0.1, we map flat index Base*8 + Channel
                 uint16_t flat_idx = index * 8 + sub_index;
-                if (is_input) {
-                    bit_val = memory_.readDiscreteInput(flat_idx);
-                } else {
-                    bit_val = memory_.readCoil(flat_idx);
-                }
+                std::string area_str(1, area_char);
+                bit_val = memory_.readLSBit(area_str, flat_idx);
                 resp_data.push_back(bit_val ? 0x01 : 0x00);
             } else {
                 writeUint16LE(&resp_data[0], 2); // 2 bytes size (Word)
                 
-                uint16_t val = 0;
-                if (is_input) {
-                    val = memory_.readInputRegister(index);
-                } else {
-                    val = memory_.readHoldingRegister(index);
-                }
+                uint16_t val = memory_.readLSWord(index);
                 resp_data.resize(4);
                 writeUint16LE(&resp_data[2], val);
             }
@@ -308,18 +298,11 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
                 if (is_bit) {
                     uint16_t flat_idx = index * 8 + sub_index;
                     bool val = request[write_len_offset + 2] != 0;
-                    if (is_input) {
-                        memory_.writeDiscreteInput(flat_idx, val);
-                    } else {
-                        memory_.writeCoil(flat_idx, val);
-                    }
+                    std::string area_str(1, area_char);
+                    memory_.writeLSBit(area_str, flat_idx, val);
                 } else {
                     uint16_t val = readUint16LE(&request[write_len_offset + 2]);
-                    if (is_input) {
-                        memory_.writeInputRegister(index, val);
-                    } else {
-                        memory_.writeHoldingRegister(index, val);
-                    }
+                    memory_.writeLSWord(index, val);
                 }
             }
         }
@@ -371,7 +354,7 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
     return response;
 }
 
-bool XgtServer::resolveAddress(const std::string& addr_str, bool& is_bit, bool& is_input, uint16_t& index, uint16_t& sub_index) {
+bool XgtServer::resolveAddress(const std::string& addr_str, char& area_char, bool& is_bit, uint16_t& index, uint16_t& sub_index) {
     if (addr_str.size() < 4) return false;
     
     size_t start = 0;
@@ -384,10 +367,8 @@ bool XgtServer::resolveAddress(const std::string& addr_str, bool& is_bit, bool& 
     char area = addr_str[start];
     char type = addr_str[start + 1];
     
-    if (area == 'I') {
-        is_input = true;
-    } else if (area == 'Q' || area == 'M') {
-        is_input = false;
+    if (area == 'I' || area == 'Q' || area == 'M') {
+        area_char = area;
     } else {
         return false;
     }
@@ -416,19 +397,18 @@ bool XgtServer::resolveAddress(const std::string& addr_str, bool& is_bit, bool& 
         
         if (nums.empty()) return false;
         if (nums.size() == 1) {
-            index = nums[0];
+            index = static_cast<uint16_t>(nums[0]);
             sub_index = 0;
         } else if (nums.size() == 2) {
-            index = nums[0];
-            sub_index = nums[1];
+            index = static_cast<uint16_t>(nums[0]);
+            sub_index = static_cast<uint16_t>(nums[1]);
         } else {
-            // e.g. %IX0.0.1 -> index=nums[last-1], sub_index=nums[last]
-            index = nums[nums.size() - 2];
-            sub_index = nums[nums.size() - 1];
+            index = static_cast<uint16_t>(nums[nums.size() - 2]);
+            sub_index = static_cast<uint16_t>(nums[nums.size() - 1]);
         }
     } else {
         try {
-            index = std::stoi(number_part);
+            index = static_cast<uint16_t>(std::stoi(number_part));
             sub_index = 0;
         } catch (...) {
             return false;

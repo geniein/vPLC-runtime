@@ -20,6 +20,9 @@ public:
     PlcTagManager(PlcMemory& memory, const std::string& config_path = "tags.json");
     ~PlcTagManager() = default;
 
+    // Access raw memory
+    PlcMemory& getMemory() { return memory_; }
+
     // CRUD Operations for Tags
     bool addTag(const PlcTag& tag);
     bool removeTag(const std::string& name);

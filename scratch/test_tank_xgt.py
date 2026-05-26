@@ -9,7 +9,7 @@ def test_xgt_server():
     print("=== Starting Active vPLC LS Electric XGT Protocol Test ===")
     
     server_ip = "127.0.0.1"
-    server_port = 2004
+    server_port = 2014
     
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
