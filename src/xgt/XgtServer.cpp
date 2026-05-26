@@ -192,6 +192,74 @@ void XgtServer::handleClient(int client_fd, std::string client_ip) {
             break;
         }
 
+        // --- PROTOCOL DRAIN & RECOVERY LAYER FOR PyXGT BUG ---
+        // PyXGT length field (offset 16-17) is written as len(app_instruction) (14) instead of 2 + len(app_instruction) (16).
+        // This causes the server to stop reading before the last 2 bytes are retrieved.
+        // We inspect the body and read the exact remaining bytes blockingly to avoid any timing or scheduling issues.
+        if (body.size() >= 12) {
+            uint16_t command = body[2] | (body[3] << 8);
+            uint16_t var_len = body[10] | (body[11] << 8);
+            
+            size_t expected_body_len = 12 + var_len;
+            if (command == 0x0058) { // Write command
+                // For Write, we need 12 + var_len + 2 bytes to read the write_data_len field
+                expected_body_len = 12 + var_len + 2;
+            }
+            
+            // If we have less than expected, read the difference blockingly
+            if (body.size() < expected_body_len) {
+                size_t diff = expected_body_len - body.size();
+                std::cerr << "[XgtServer Debug] PyXGT bug detected! expected_body_len=" << expected_body_len 
+                          << ", body.size()=" << body.size() << ", diff=" << diff << " blockingly..." << std::endl;
+                std::vector<uint8_t> extra(diff);
+                size_t extra_read = 0;
+                while (extra_read < diff) {
+                    ssize_t ret = recv(client_fd, extra.data() + extra_read, diff - extra_read, 0);
+                    if (ret <= 0) {
+                        disconnected = true;
+                        break;
+                    }
+                    extra_read += ret;
+                }
+                if (disconnected) break;
+                body.insert(body.end(), extra.begin(), extra.end());
+                std::cerr << "[XgtServer Debug] Successfully read extra " << extra_read 
+                          << " bytes. New body size=" << body.size() << std::endl;
+            }
+            
+            // Now, if it is a Write command, we can check the write_data_len and read the remaining data
+            if (command == 0x0058 && body.size() >= 12 + var_len + 2) {
+                uint16_t write_data_len = body[12 + var_len] | (body[12 + var_len + 1] << 8);
+                
+                // If write_data_len is PyXGT's buggy "20 00" (0x0020), correct it to actual 2 bytes data
+                if (write_data_len == 0x0020) {
+                    std::cerr << "[XgtServer Debug] Corrected PyXGT write_data_len from 0x0020 to 2 bytes" << std::endl;
+                    write_data_len = 2;
+                }
+                
+                size_t full_expected_len = 12 + var_len + 2 + write_data_len;
+                if (body.size() < full_expected_len) {
+                    size_t diff = full_expected_len - body.size();
+                    std::cerr << "[XgtServer Debug] PyXGT Write diff detected! expected=" << full_expected_len 
+                              << ", body=" << body.size() << ", diff=" << diff << " blockingly..." << std::endl;
+                    std::vector<uint8_t> extra(diff);
+                    size_t extra_read = 0;
+                    while (extra_read < diff) {
+                        ssize_t ret = recv(client_fd, extra.data() + extra_read, diff - extra_read, 0);
+                        if (ret <= 0) {
+                            disconnected = true;
+                            break;
+                        }
+                        extra_read += ret;
+                    }
+                    if (disconnected) break;
+                    body.insert(body.end(), extra.begin(), extra.end());
+                    std::cerr << "[XgtServer Debug] Successfully read extra write " << extra_read 
+                              << " bytes. New body size=" << body.size() << std::endl;
+                }
+            }
+        }
+
         // Construct complete request packet
         std::vector<uint8_t> request;
         request.reserve(18 + packet_len);
@@ -248,6 +316,13 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
     // Extract ASCII variable name
     std::string var_name(reinterpret_cast<const char*>(&request[30]), var_len);
     
+    std::cerr << "[XgtServer Debug] Parsed var_name: \"" << var_name << "\" (len=" << var_len << ")" << std::endl;
+    std::cerr << "  Bytes: ";
+    for (size_t i = 0; i < var_len; ++i) {
+        std::cerr << std::hex << (int)(uint8_t)var_name[i] << " ";
+    }
+    std::cerr << std::dec << std::endl;
+    
     // Resolve address to LS native areas
     char area_char = 0;
     bool is_bit = false;
@@ -291,6 +366,12 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
             error_status = 0x1102; // Address parsing error
         } else {
             uint16_t write_data_len = readUint16LE(&request[write_len_offset]);
+            
+            // PyXGT write_data_len bug workaround
+            if (write_data_len == 0x0020) {
+                write_data_len = 2;
+            }
+            
             if (request.size() < write_len_offset + 2 + write_data_len) {
                 error_status = 0x1102;
             } else {
