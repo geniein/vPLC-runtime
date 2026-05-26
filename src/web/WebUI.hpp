@@ -32,6 +32,112 @@ const std::string INDEX_HTML = R"HTML(
             --font-title: 'Outfit', sans-serif;
         }
 
+        /* Tab Navigation styling */
+        .nav-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.5rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .tab-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            outline: none;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            color: white;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-violet) 100%);
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
+        }
+
+        /* Usage Guide Panel Styles */
+        .guide-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .guide-section {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .guide-subtitle {
+            font-family: var(--font-title);
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .guide-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .guide-list li {
+            position: relative;
+            padding-left: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .guide-list li::before {
+            content: "•";
+            position: absolute;
+            left: 0.25rem;
+            color: var(--accent-cyan);
+            font-weight: bold;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #22d3ee;
+            overflow-x: auto;
+            line-height: 1.4;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -510,7 +616,19 @@ const std::string INDEX_HTML = R"HTML(
         </div>
     </header>
 
-    <div class="main-container">
+    <!-- Tab Navigation Bar -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" id="btn-configurator" onclick="switchTab('configurator')">
+            <span>⚙️</span> Configurator
+        </button>
+        <button class="tab-btn" id="btn-usage" onclick="switchTab('usage')">
+            <span>📖</span> Usage & Guide
+        </button>
+    </div>
+
+    <!-- 1. Configurator Tab Section -->
+    <div id="tab-configurator" style="display: contents;">
+        <div class="main-container">
         <!-- Create Tag Form Card -->
         <div class="card">
             <div class="card-title">신규 메모리 맵핑 추가</div>
@@ -626,6 +744,180 @@ const std::string INDEX_HTML = R"HTML(
             <button class="btn" onclick="saveMappings()">매핑 규칙 실시간 핫로드 (Hot-Reload)</button>
         </div>
     </div>
+    </div> <!-- End of tab-configurator -->
+
+    <!-- 2. Usage & Guide Tab Section -->
+    <div id="tab-usage" class="guide-container" style="display: none;">
+        <!-- Guide Intro Card -->
+        <div class="guide-section">
+            <div class="card-title">📖 vPLC 다이나믹 매핑 엔진 가이드</div>
+            <p style="font-size: 0.95rem; color: var(--text-primary); line-height: 1.6;">
+                vPLC는 이기종 산업용 필드버스 장비 간의 레지스터 메모리를 소스 코드 변경 없이 20ms 주기 안에서 양방향 실시간 동기화해 주는 
+                <strong>고성능 양방향 다이나믹 매핑 엔진</strong>을 탑재하고 있습니다. 
+                본 웹페이지를 통해 혹은 <code>mappings.json</code> 설정을 변경하여 실시간으로 통신 프로토콜 간 주소 체계를 교차 미러링할 수 있습니다.
+            </p>
+            
+            <div class="guide-subtitle">🔗 주소 체계 설계 (닷 표기법)</div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 0.5rem;">
+                매핑 주소는 <code>PROTOCOL.AREA.INDEX</code> 또는 하위 타입 지시어를 포함해 <code>PROTOCOL.AREA.SUB_TYPE.INDEX</code> 형식으로 기재합니다.
+            </p>
+            <div class="code-block">
+                • S7.DB1.W.0 &nbsp;&nbsp;&nbsp;➡️ Siemens S7 DB1 데이터 블록의 Word 0번지<br>
+                • MC.Y.0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;➡️ Mitsubishi MC 출력 비트 Y0번지<br>
+                • LS.W.1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;➡️ LS Electric XGT 워드 레지스터 1번지 (%MW1)
+            </div>
+        </div>
+
+        <!-- PLC Memory Maps Grid -->
+        <div class="main-container" style="grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); width: 100%;">
+            <!-- Siemens S7 Card -->
+            <div class="guide-section">
+                <div class="card-title" style="border-left-color: var(--accent-violet);">🇩🇪 Siemens S7 Memory Area</div>
+                <div class="guide-subtitle">지원 영역 및 표기법</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>영역 (AREA)</th>
+                                <th>의미</th>
+                                <th>데이터 타입</th>
+                                <th>주소 예시</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">PE</td>
+                                <td>Process Input (입력 비트)</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">S7.PE.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">PA</td>
+                                <td>Process Output (출력 비트)</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">S7.PA.1</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">DB1</td>
+                                <td>Data Block 1 (데이터 워드)</td>
+                                <td><span class="badge badge-holding-regs">Word</span></td>
+                                <td style="font-family: monospace;">S7.DB1.W.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">DB2</td>
+                                <td>Data Block 2 (데이터 워드)</td>
+                                <td><span class="badge badge-holding-regs">Word</span></td>
+                                <td style="font-family: monospace;">S7.DB2.W.2</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mitsubishi MC Card -->
+            <div class="guide-section">
+                <div class="card-title" style="border-left-color: var(--accent-amber);">🇯🇵 Mitsubishi MC Memory Area</div>
+                <div class="guide-subtitle">지원 영역 및 표기법</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>디바이스 (AREA)</th>
+                                <th>의미</th>
+                                <th>데이터 타입</th>
+                                <th>주소 예시</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">X / Y</td>
+                                <td>물리 입출력 릴레이</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">MC.X.0 / MC.Y.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">M / L / B</td>
+                                <td>내부 / 래치 / 링크 릴레이</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">MC.M.100</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">D</td>
+                                <td>Data Register (데이터)</td>
+                                <td><span class="badge badge-holding-regs">Word</span></td>
+                                <td style="font-family: monospace;">MC.D.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">W / R</td>
+                                <td>링크 / 파일 레지스터</td>
+                                <td><span class="badge badge-holding-regs">Word</span></td>
+                                <td style="font-family: monospace;">MC.W.10</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- LS Electric XGT Card -->
+            <div class="guide-section">
+                <div class="card-title" style="border-left-color: var(--accent-emerald);">🇰🇷 LS Electric XGT Memory Area</div>
+                <div class="guide-subtitle">지원 영역 및 표기법</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>영역 (AREA)</th>
+                                <th>의미</th>
+                                <th>데이터 타입</th>
+                                <th>주소 예시</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">I</td>
+                                <td>Input Relay (입력 비트)</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">LS.I.0 (%IX0.0.0)</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">Q</td>
+                                <td>Output Relay (출력 비트)</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">LS.Q.0 (%QX0.0.0)</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">M</td>
+                                <td>Auxiliary Relay (보조 비트)</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">LS.M.10 (%MX10)</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">W</td>
+                                <td>Data Register (워드 레지스터)</td>
+                                <td><span class="badge badge-holding-regs">Word</span></td>
+                                <td style="font-family: monospace;">LS.W.1 (%MW1)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modbus & REST API Card -->
+            <div class="guide-section">
+                <div class="card-title" style="border-left-color: var(--accent-cyan);">🌐 Modbus & Live Hot-Reload API</div>
+                <div class="guide-subtitle">Modbus 표준 매핑 및 REST API 활용</div>
+                <ul class="guide-list">
+                    <li><strong>Modbus Mapping</strong>: Coil(<code>MODBUS.COIL.0</code>), Discrete Input(<code>MODBUS.DI.0</code>), Input Register(<code>MODBUS.IR.0</code>), Holding Register(<code>MODBUS.HR.0</code>)을 완전히 연동합니다.</li>
+                    <li><strong>GET Mappings</strong>: <code>GET /api/mappings</code> 를 호출하여 vPLC 코어에 로드된 모든 교차 매핑 룰을 조회합니다.</li>
+                    <li><strong>POST Mappings (Hot-Reload)</strong>: <code>POST /api/mappings</code> 에 JSON 설정 본문을 날려 런타임 재부팅 없이 실시간 핫로드를 수행합니다.</li>
+                </ul>
+                <div class="code-block" style="font-size: 0.8rem;">
+                    # cURL을 활용한 실시간 매핑 규칙 핫로드 예제<br>
+                    curl -X POST -H "Content-Type: application/json" -d '\''[{"src":"S7.DB1.W.0","dst":"MC.D.0"}]'\'' http://localhost:8080/api/mappings
+                </div>
+            </div>
+        </div>
+    </div> <!-- End of tab-usage -->
 
     <div id="toast-container"></div>
 
@@ -1123,6 +1415,26 @@ const std::string INDEX_HTML = R"HTML(
                 }
             } catch (err) {
                 showToast("네트워크 오류가 발생했습니다.", "error");
+            }
+        }
+
+        // Tab Switch Logic
+        function switchTab(tabName) {
+            const btnConfig = document.getElementById("btn-configurator");
+            const btnUsage = document.getElementById("btn-usage");
+            const tabConfig = document.getElementById("tab-configurator");
+            const tabUsage = document.getElementById("tab-usage");
+
+            if (tabName === 'configurator') {
+                btnConfig.classList.add("active");
+                btnUsage.classList.remove("active");
+                tabConfig.style.display = "contents";
+                tabUsage.style.display = "none";
+            } else {
+                btnConfig.classList.remove("active");
+                btnUsage.classList.add("active");
+                tabConfig.style.display = "none";
+                tabUsage.style.display = "flex";
             }
         }
 
