@@ -6,6 +6,36 @@
 #include <sys/select.h>
 #include <iomanip>
 
+// Helper to calculate the visible character length of a string (ignoring ANSI escapes and counting UTF-8 multibyte characters as 1)
+static size_t getVisibleLength(const std::string& s) {
+    size_t len = 0;
+    bool in_escape = false;
+    for (size_t i = 0; i < s.length(); ++i) {
+        if (s[i] == '\033') {
+            in_escape = true;
+        } else if (in_escape) {
+            if ((s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= 'a' && s[i] <= 'z')) {
+                in_escape = false;
+            }
+        } else {
+            unsigned char c = s[i];
+            if ((c & 0xC0) != 0x80) {
+                len++;
+            }
+        }
+    }
+    return len;
+}
+
+// Helper to pad a string containing ANSI escape codes with spaces up to target_len
+static std::string padString(const std::string& s, size_t target_len) {
+    size_t len = getVisibleLength(s);
+    if (len >= target_len) {
+        return s;
+    }
+    return s + std::string(target_len - len, ' ');
+}
+
 PlcTui::PlcTui(PlcMemory& memory, PlcScheduler& scheduler, ModbusServer& server, S7Server& s7_server, McServer& mc_server, XgtServer& xgt_server)
     : memory_(memory),
       scheduler_(scheduler),
@@ -283,11 +313,12 @@ void PlcTui::drawWaterTankScreen(const PlcScheduler::Stats& stats) {
     
     left_side[21] = "";
 
-    // Draw left and right columns side-by-side using Horizontal Absolute Cursor code \033[48G
+    // Draw left and right columns side-by-side using space padding for robust alignment
     for (int i = 0; i < 22; ++i) {
-        ss << left_side[i];
         if (i < 14) {
-            ss << "\033[48G" << tank_rows[i];
+            ss << padString(left_side[i], 48) << tank_rows[i];
+        } else {
+            ss << left_side[i];
         }
         ss << "\n";
     }
@@ -531,11 +562,12 @@ void PlcTui::drawAssemblyScreen(const PlcScheduler::Stats& stats) {
     ss_mw1 << "  %MW1   Conveyor Speed    : \033[1;35m" << std::setw(4) << conveyor_speed << " mm/s\033[0m";
     left_side[21] = ss_mw1.str();
 
-    // Draw left and right columns side-by-side using Horizontal Absolute Cursor code \033[48G
+    // Draw left and right columns side-by-side using space padding for robust alignment
     for (int i = 0; i < 22; ++i) {
-        ss << left_side[i];
         if (i < 14) {
-            ss << "\033[48G" << visual_rows[i];
+            ss << padString(left_side[i], 48) << visual_rows[i];
+        } else {
+            ss << left_side[i];
         }
         ss << "\n";
     }

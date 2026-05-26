@@ -221,29 +221,33 @@ void XgtServer::handleClient(int client_fd, std::string client_ip) {
 }
 
 std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& request) {
-    // Basic length verification: header (18) + Slot/Station/Checksum/Reserved (4) + Cmd (2) + DataType (2) + Reserved (2) + Blocks (2) + VarLen (2) = 34 bytes
-    if (request.size() < 34) {
-        std::vector<uint8_t> err_resp(20, 0);
+    // Basic length verification: header (20) + Cmd (2) + DataType (2) + Reserved (2) + Blocks (2) + VarLen (2) = 30 bytes
+    if (request.size() < 30) {
+        std::vector<uint8_t> err_resp(30, 0);
         std::memcpy(err_resp.data(), "LSIS-XGT\x00\x00", 10);
         err_resp[13] = 0x11; // Response direction
-        writeUint16LE(&err_resp[16], 2); // Length
-        writeUint16LE(&err_resp[18], 0x00FF); // Error code: general failure
+        writeUint16LE(&err_resp[16], 12); // Length of payload starting from offset 18
+        writeUint16LE(&err_resp[20], 0x00FF); // Error code/cmd: general failure
+        writeUint16LE(&err_resp[26], 0x00FF); // Error status
         return err_resp;
     }
 
-    uint16_t command = readUint16LE(&request[22]);
-    uint16_t data_type = readUint16LE(&request[24]);
-    uint16_t var_len = readUint16LE(&request[30]);
+    uint16_t command = readUint16LE(&request[20]);
+    uint16_t data_type = readUint16LE(&request[22]);
+    uint16_t var_len = readUint16LE(&request[28]);
 
-    if (request.size() < 32 + var_len) {
-        std::vector<uint8_t> err_resp(20, 0);
+    if (request.size() < 30u + var_len) {
+        std::vector<uint8_t> err_resp(30, 0);
         std::memcpy(err_resp.data(), "LSIS-XGT\x00\x00", 10);
         err_resp[13] = 0x11;
+        writeUint16LE(&err_resp[16], 12);
+        writeUint16LE(&err_resp[20], (command == 0x0054) ? 0x0055 : 0x0059);
+        writeUint16LE(&err_resp[26], 0x1102); // Length error
         return err_resp;
     }
 
     // Extract ASCII variable name
-    std::string var_name(reinterpret_cast<const char*>(&request[32]), var_len);
+    std::string var_name(reinterpret_cast<const char*>(&request[30]), var_len);
     
     // Resolve address to flat PlcMemory indexes
     bool is_bit = false;
@@ -253,25 +257,16 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
     bool resolve_success = resolveAddress(var_name, is_bit, is_input, index, sub_index);
 
     std::vector<uint8_t> resp_data;
+    uint16_t error_status = 0x0000;
 
     if (command == 0x0054) {
         // --- READ COMMAND ---
         if (!resolve_success) {
-            resp_data.resize(4);
-            writeUint16LE(&resp_data[0], 0x1102); // Error status: Address parsing error
-            writeUint16LE(&resp_data[2], 0);      // Data Length
+            error_status = 0x1102; // Error status: Address parsing error
         } else {
-            resp_data.resize(6);
-            writeUint16LE(&resp_data[0], 0x0000); // Error status: Success
-            writeUint16LE(&resp_data[2], var_len); // Echo var name length
-            
-            // Insert variable name into response
-            resp_data.insert(resp_data.end(), var_name.begin(), var_name.end());
-            
-            size_t data_offset = resp_data.size();
+            resp_data.resize(2); // For data size (2 bytes)
             if (is_bit) {
-                resp_data.resize(data_offset + 3);
-                writeUint16LE(&resp_data[data_offset], 1); // 1 byte data length
+                writeUint16LE(&resp_data[0], 1); // 1 byte size
                 
                 // Read bit value
                 bool bit_val = false;
@@ -282,10 +277,9 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
                 } else {
                     bit_val = memory_.readCoil(flat_idx);
                 }
-                resp_data[data_offset + 2] = bit_val ? 0x01 : 0x00;
+                resp_data.push_back(bit_val ? 0x01 : 0x00);
             } else {
-                resp_data.resize(data_offset + 4);
-                writeUint16LE(&resp_data[data_offset], 2); // 2 bytes data length (Word)
+                writeUint16LE(&resp_data[0], 2); // 2 bytes size (Word)
                 
                 uint16_t val = 0;
                 if (is_input) {
@@ -293,24 +287,22 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
                 } else {
                     val = memory_.readHoldingRegister(index);
                 }
-                writeUint16LE(&resp_data[data_offset + 2], val);
+                resp_data.resize(4);
+                writeUint16LE(&resp_data[2], val);
             }
         }
     } 
     else if (command == 0x0058) {
         // --- WRITE COMMAND ---
-        size_t write_len_offset = 32 + var_len;
+        size_t write_len_offset = 30 + var_len;
         if (request.size() < write_len_offset + 2) {
-            resp_data.resize(4);
-            writeUint16LE(&resp_data[0], 0x1102); // Length error
+            error_status = 0x1102; // Length error
         } else if (!resolve_success) {
-            resp_data.resize(4);
-            writeUint16LE(&resp_data[0], 0x1102); // Address parsing error
+            error_status = 0x1102; // Address parsing error
         } else {
             uint16_t write_data_len = readUint16LE(&request[write_len_offset]);
             if (request.size() < write_len_offset + 2 + write_data_len) {
-                resp_data.resize(4);
-                writeUint16LE(&resp_data[0], 0x1102);
+                error_status = 0x1102;
             } else {
                 // Perform write to memory
                 if (is_bit) {
@@ -329,20 +321,14 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
                         memory_.writeHoldingRegister(index, val);
                     }
                 }
-
-                resp_data.resize(4 + var_len);
-                writeUint16LE(&resp_data[0], 0x0000); // Error status: Success
-                writeUint16LE(&resp_data[2], var_len); // Echo var name length
-                std::memcpy(resp_data.data() + 4, var_name.data(), var_len);
             }
         }
     } else {
-        resp_data.resize(4);
-        writeUint16LE(&resp_data[0], 0x00FF); // Unknown command
+        error_status = 0x00FF; // Unknown command
     }
 
     // Construct final response packet
-    std::vector<uint8_t> response(30 + resp_data.size()); // header(18) + routing(4) + response body(8 + resp_data)
+    std::vector<uint8_t> response(30 + resp_data.size()); // header(20) + response body(10 + resp_data)
     
     // 1. Copy Company ID & Base fields (0-13)
     std::memcpy(response.data(), request.data(), 12);
@@ -353,29 +339,34 @@ std::vector<uint8_t> XgtServer::processRequest(const std::vector<uint8_t>& reque
     response[14] = request[14];
     response[15] = request[15];
     
-    // 3. Length of response remaining payload starting from index 18 (Slot No)
-    writeUint16LE(&response[16], static_cast<uint16_t>(4 + resp_data.size()));
+    // 3. Length of response remaining payload starting from index 18 (FEnet Position)
+    writeUint16LE(&response[16], static_cast<uint16_t>(12 + resp_data.size()));
     
-    // 4. Routing block (Slot, Station, Checksum, Reserved) at index 18-21
-    response[18] = request[18]; // Slot
-    response[19] = request[19]; // Station
-    response[20] = 0x00;        // Checksum
-    response[21] = 0x00;        // Reserved
+    // 4. Routing block (FEnet Position, BCC) at index 18-19
+    response[18] = request[18]; // FEnet Position
+    response[19] = request[19]; // BCC (just copy from request)
     
-    // 5. Command Response code
+    // 5. Command Response code at index 20-21
     uint16_t resp_cmd = (command == 0x0054) ? 0x0055 : 0x0059;
-    writeUint16LE(&response[22], resp_cmd);
+    writeUint16LE(&response[20], resp_cmd);
     
-    // 6. Data Type
-    writeUint16LE(&response[24], data_type);
+    // 6. Data Type at index 22-23
+    writeUint16LE(&response[22], data_type);
     
-    // 7. Reserved & Block Count
-    response[26] = 0x00;
-    response[27] = 0x00;
-    writeUint16LE(&response[28], 1); // 1 block
+    // 7. Reserved at index 24-25
+    response[24] = 0x00;
+    response[25] = 0x00;
     
-    // 8. Copy response data
-    std::memcpy(response.data() + 30, resp_data.data(), resp_data.size());
+    // 8. Error Status at index 26-27
+    writeUint16LE(&response[26], error_status);
+    
+    // 9. Block Count at index 28-29 (1 block)
+    writeUint16LE(&response[28], 1);
+    
+    // 10. Copy response data starting from index 30
+    if (!resp_data.empty()) {
+        std::memcpy(response.data() + 30, resp_data.data(), resp_data.size());
+    }
 
     return response;
 }
