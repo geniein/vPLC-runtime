@@ -905,18 +905,61 @@ const std::string INDEX_HTML = R"HTML(
                 </div>
             </div>
 
-            <!-- Modbus & REST API Card -->
+            <!-- Modbus Card -->
             <div class="guide-section">
-                <div class="card-title" style="border-left-color: var(--accent-cyan);">🌐 Modbus & Live Hot-Reload API</div>
-                <div class="guide-subtitle">Modbus 표준 매핑 및 REST API 활용</div>
+                <div class="card-title" style="border-left-color: var(--accent-cyan);">🌐 Modbus Memory Area</div>
+                <div class="guide-subtitle">지원 영역 및 표기법</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>영역 (AREA)</th>
+                                <th>의미</th>
+                                <th>데이터 타입</th>
+                                <th>주소 예시</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">COIL</td>
+                                <td>Coil Status (출력 비트)</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">MODBUS.COIL.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">DI</td>
+                                <td>Discrete Input (입력 비트)</td>
+                                <td><span class="badge badge-coils">Bit</span></td>
+                                <td style="font-family: monospace;">MODBUS.DI.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">IR</td>
+                                <td>Input Register (입력 워드)</td>
+                                <td><span class="badge badge-holding-regs">Word</span></td>
+                                <td style="font-family: monospace;">MODBUS.IR.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; font-weight: bold; color: var(--accent-cyan);">HR</td>
+                                <td>Holding Register (유지 워드)</td>
+                                <td><span class="badge badge-holding-regs">Word</span></td>
+                                <td style="font-family: monospace;">MODBUS.HR.1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- REST API Card -->
+            <div class="guide-section" style="grid-column: span 2;">
+                <div class="card-title" style="border-left-color: var(--accent-pink);">📡 Live Mapping Configurator REST API</div>
+                <div class="guide-subtitle">런타임 실시간 조작 및 규칙 핫로드</div>
                 <ul class="guide-list">
-                    <li><strong>Modbus Mapping</strong>: Coil(<code>MODBUS.COIL.0</code>), Discrete Input(<code>MODBUS.DI.0</code>), Input Register(<code>MODBUS.IR.0</code>), Holding Register(<code>MODBUS.HR.0</code>)을 완전히 연동합니다.</li>
-                    <li><strong>GET Mappings</strong>: <code>GET /api/mappings</code> 를 호출하여 vPLC 코어에 로드된 모든 교차 매핑 룰을 조회합니다.</li>
-                    <li><strong>POST Mappings (Hot-Reload)</strong>: <code>POST /api/mappings</code> 에 JSON 설정 본문을 날려 런타임 재부팅 없이 실시간 핫로드를 수행합니다.</li>
+                    <li><strong>GET /api/mappings</strong>: 현재 vPLC 런타임에 기동되어 활성화된 모든 이기종 PLC 교차 매핑 규칙을 실시간 조회합니다.</li>
+                    <li><strong>POST /api/mappings</strong>: 신규 매핑 JSON 페이로드를 전달하여 가상 PLC 엔진의 재부팅 없이 실시간 핫로드를 수행합니다.</li>
                 </ul>
                 <div class="code-block" style="font-size: 0.8rem;">
                     # cURL을 활용한 실시간 매핑 규칙 핫로드 예제<br>
-                    curl -X POST -H "Content-Type: application/json" -d '\''[{"src":"S7.DB1.W.0","dst":"MC.D.0"}]'\'' http://localhost:8080/api/mappings
+                    curl -X POST -H "Content-Type: application/json" -d '[{"src":"MODBUS.HR.1","dst":"LS.W.1"}]' http://localhost:8080/api/mappings
                 </div>
             </div>
         </div>
@@ -1492,6 +1535,7 @@ const std::string INDEX_HTML = R"HTML(
             } else {
                 // Default watch items
                 watchList = [
+                    { address: "MODBUS.HR.1", description: "Modbus Holding Register 1" },
                     { address: "MC.D.0", description: "Mitsubishi D0 (Word)" },
                     { address: "S7.DB1.W.0", description: "Siemens DB1.DBW0" },
                     { address: "LS.W.1", description: "LS Electric %MW1 (Target)" }
