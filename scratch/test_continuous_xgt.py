@@ -19,13 +19,13 @@ def run_tests():
         sys.exit(1)
 
     # =========================================================================
-    # Test 1: Continuous Read %MW0, size 20 bytes (10 Words)
-    # Variable "%MW0" has length 4.
+    # Test 1: Continuous Read %MB0, size 20 bytes (10 Words)
+    # Variable "%MB0" has length 4.
     # Body has 18 bytes: 2 (BCC) + 2 (Cmd) + 2 (Type) + 2 (Reserved) + 2 (Blocks) + 2 (VarLen) + 4 (VarName) + 2 (ReadSize)
     # Header length field: 18 = 0x0012
     # =========================================================================
     header = b"LSIS-XGT\x00\x00\x00\x00\xA0\x33\x01\x00\x12\x00"
-    body = b"\x00\x00\x54\x00\x14\x00\x00\x00\x01\x00\x04\x00%MW0\x14\x00"
+    body = b"\x00\x00\x54\x00\x14\x00\x00\x00\x01\x00\x04\x00%MB0\x14\x00"
     req = header + body
     print_hex("\n[Test 1] Continuous Read Request", req)
     s.sendall(req)
@@ -41,12 +41,12 @@ def run_tests():
     assert data_size == 20
     
     # =========================================================================
-    # Test 2: Continuous Write %MW0, size 20 bytes (10 Words) with values [10, 20, ..., 100]
+    # Test 2: Continuous Write %MB0, size 20 bytes (10 Words) with values [10, 20, ..., 100]
     # Body has 38 bytes: 18 (as above) + 20 (write data)
     # Header length field: 38 = 0x0026
     # =========================================================================
     write_header = b"LSIS-XGT\x00\x00\x00\x00\xA0\x33\x02\x00\x26\x00"
-    write_body = b"\x00\x00\x58\x00\x14\x00\x00\x00\x01\x00\x04\x00%MW0\x14\x00"
+    write_body = b"\x00\x00\x58\x00\x14\x00\x00\x00\x01\x00\x04\x00%MB0\x14\x00"
     for i in range(1, 11):
         val = i * 10
         write_body += bytes([val & 0xFF, (val >> 8) & 0xFF])
@@ -62,10 +62,10 @@ def run_tests():
     print("  -> Continuous Write Success!")
 
     # =========================================================================
-    # Test 3: Continuous Read %MW0 Again to Verify Values
+    # Test 3: Continuous Read %MB0 Again to Verify Values
     # =========================================================================
     header = b"LSIS-XGT\x00\x00\x00\x00\xA0\x33\x03\x00\x12\x00"
-    body = b"\x00\x00\x54\x00\x14\x00\x00\x00\x01\x00\x04\x00%MW0\x14\x00"
+    body = b"\x00\x00\x54\x00\x14\x00\x00\x00\x01\x00\x04\x00%MB0\x14\x00"
     req = header + body
     s.sendall(req)
     
@@ -77,19 +77,19 @@ def run_tests():
     print("  -> Values read back:")
     for i in range(10):
         val = resp[32 + i*2] | (resp[32 + i*2 + 1] << 8)
-        print(f"     %MW{i}: {val} (Expected: {(i+1)*10})")
-        assert val == (i+1)*10, f"Value mismatch at %MW{i}: {val}"
+        print(f"     %MB{i*2}: {val} (Expected: {(i+1)*10})")
+        assert val == (i+1)*10, f"Value mismatch at %MB{i*2}: {val}"
     print("  -> [SUCCESS] Continuous values verified!")
 
     # =========================================================================
-    # Test 4: Individual Multi-Block Read of %MW0 and %MW1 (Block Count = 2)
-    # "%MW0" (4 chars) and "%MW1" (4 chars)
+    # Test 4: Individual Multi-Block Read of %MB0 and %MB2 (Block Count = 2)
+    # "%MB0" (4 chars) and "%MB2" (4 chars)
     # Body has 22 bytes: 2 (BCC) + 2 (Cmd) + 2 (Type) + 2 (Reserved) + 2 (Blocks) + 
     #                   2 (VarLen1) + 4 (Var1) + 2 (VarLen2) + 4 (Var2)
     # Header length field: 22 = 0x0016
     # =========================================================================
     multi_header = b"LSIS-XGT\x00\x00\x00\x00\xA0\x33\x04\x00\x16\x00"
-    multi_body = b"\x00\x00\x54\x00\x02\x00\x00\x00\x02\x00\x04\x00%MW0\x04\x00%MW1"
+    multi_body = b"\x00\x00\x54\x00\x02\x00\x00\x00\x02\x00\x04\x00%MB0\x04\x00%MB2"
     multi_req = multi_header + multi_body
     print_hex("\n[Test 4] Multi-Block Individual Read Request", multi_req)
     s.sendall(multi_req)

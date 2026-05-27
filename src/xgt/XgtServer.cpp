@@ -612,7 +612,7 @@ bool XgtServer::resolveAddress(const std::string& addr_str, char& area_char, boo
     
     if (type == 'X') {
         is_bit = true;
-    } else if (type == 'W') {
+    } else if (type == 'W' || type == 'B') {
         is_bit = false;
     } else {
         return false;
@@ -647,6 +647,9 @@ bool XgtServer::resolveAddress(const std::string& addr_str, char& area_char, boo
         try {
             index = static_cast<uint16_t>(std::stoi(number_part));
             sub_index = 0;
+            if (type == 'B') {
+                index = index / 2; // Map Byte index to Word index
+            }
         } catch (...) {
             return false;
         }
