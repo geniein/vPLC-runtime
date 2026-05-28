@@ -29,6 +29,7 @@ private:
 
     // Render screen buffers
     void drawScreen();
+    void drawNoLogicScreen(const PlcScheduler::Stats& stats);
     void drawWaterTankScreen(const PlcScheduler::Stats& stats);
     void drawAssemblyScreen(const PlcScheduler::Stats& stats);
     void drawTrimScreen(const PlcScheduler::Stats& stats);

@@ -154,9 +154,183 @@ void PlcTui::drawScreen() {
         drawAssemblyScreen(stats);
     } else if (is_trim) {
         drawTrimScreen(stats);
+    } else if (lib_path.empty()) {
+        drawNoLogicScreen(stats);
     } else {
         drawWaterTankScreen(stats);
     }
+}
+
+void PlcTui::drawNoLogicScreen(const PlcScheduler::Stats& stats) {
+    // Read variables from PLC memory
+    bool auto_mode = memory_.readDiscreteInput(0);
+    
+    // Read first 8 variables of each area for live monitoring
+    bool ix[8];
+    bool qx[8];
+    uint16_t iw[4];
+    uint16_t mw[4];
+    for (int i = 0; i < 8; ++i) {
+        ix[i] = memory_.readDiscreteInput(i);
+        qx[i] = memory_.readCoil(i);
+    }
+    for (int i = 0; i < 4; ++i) {
+        iw[i] = memory_.readInputRegister(i);
+        mw[i] = memory_.readHoldingRegister(i);
+    }
+    
+    std::stringstream ss;
+    
+    // Move cursor to home (top-left) without flickering
+    ss << "\033[H";
+
+    // Header Frame
+    ss << "\033[1;36m================================================================================\033[0m\n";
+    ss << "\033[1;37m                      VIRTUAL PLC (vPLC) - PASS-THROUGH MODE                     \033[0m\n";
+    ss << "\033[1;36m================================================================================\033[0m\n";
+
+    // Left Column elements
+    std::string left_side[22];
+    left_side[0]  = " \033[1;33m[SYSTEM STATUS]\033[0m";
+    
+    std::stringstream ss_run;
+    ss_run << "  Runtime Status:     \033[1;32mACTIVE\033[0m";
+    left_side[1]  = ss_run.str();
+    
+    std::stringstream ss_scan;
+    ss_scan << "  Target Scan Rate:   \033[1;37m" << stats.target_cycle_ms << " ms\033[0m";
+    left_side[2]  = ss_scan.str();
+    
+    std::stringstream ss_exec;
+    ss_exec << "  Avg Execution Scan: \033[1;37m" << std::fixed << std::setprecision(3) << stats.avg_scan_time_ms << " ms\033[0m";
+    left_side[3]  = ss_exec.str();
+    
+    std::stringstream ss_jit;
+    ss_jit << "  Scan Timing Jitter: \033[1;37m" << stats.jitter_ms << " ms\033[0m";
+    left_side[4]  = ss_jit.str();
+    
+    std::stringstream ss_tick;
+    ss_tick << "  Total Scan Ticks:   \033[1;37m" << stats.total_ticks << "\033[0m";
+    left_side[5]  = ss_tick.str();
+    
+    std::stringstream ss_mod;
+    if (server_.isRunning()) {
+        ss_mod << "  Modbus Server:      \033[1;37mPort " << server_.getPort() << "\033[0m (" << server_.getConnectedClientsCount() << " clients)";
+    } else {
+        ss_mod << "  Modbus Server:      \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[6] = ss_mod.str();
+    
+    std::stringstream ss_s7;
+    if (s7_server_.isRunning()) {
+        ss_s7 << "  Siemens S7 Server:  \033[1;37mPort " << s7_server_.getPort() << "\033[0m (" << s7_server_.getClientsCount() << " clients)";
+    } else {
+        ss_s7 << "  Siemens S7 Server:  \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[7] = ss_s7.str();
+    
+    std::stringstream ss_mc;
+    if (mc_server_.isRunning()) {
+        ss_mc << "  Mitsubishi MC:      \033[1;37mPort " << mc_server_.getPort() << "\033[0m (" << mc_server_.getClientsCount() << " clients)";
+    } else {
+        ss_mc << "  Mitsubishi MC:      \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[8] = ss_mc.str();
+    
+    std::stringstream ss_xgt;
+    if (xgt_server_.isRunning()) {
+        ss_xgt << "  LS Electric XGT:    \033[1;37mPort " << xgt_server_.getPort() << "\033[0m (" << xgt_server_.getClientsCount() << " clients)";
+    } else {
+        ss_xgt << "  LS Electric XGT:    \033[1;30m[ DISABLED ]\033[0m";
+    }
+    left_side[9] = ss_xgt.str();
+    
+    left_side[10] = " \033[90m-----------------------------------------------\033[0m";
+    
+    left_side[11] = " \033[1;33m[PLC REGISTER MAP (DESCRIPTIVE)]\033[0m";
+    
+    std::stringstream ss_ix00;
+    ss_ix00 << "  %IX0.0 Auto Mode Switch  : " << (auto_mode ? "\033[1;32m[ AUTO ]\033[0m" : "\033[1;30m[MANUAL]\033[0m");
+    left_side[12] = ss_ix00.str();
+
+    left_side[13] = "  No simulation logic is running.";
+    left_side[14] = "  PLC Memory functions purely as a register";
+    left_side[15] = "  map for Modbus, S7, MC, and XGT protocols.";
+    left_side[16] = "";
+    left_side[17] = "";
+    left_side[18] = "";
+    left_side[19] = "";
+    left_side[20] = "";
+    left_side[21] = "";
+
+    // Right Column visual representation (ascii card showing pass-through status)
+    std::string right_side[14];
+    right_side[0]  = "     \033[1;33m[LIVE REGISTER MONITOR]\033[0m";
+    right_side[1]  = "      Discrete Inputs (%IX0.0 - %IX0.7):";
+    
+    std::stringstream ss_ix_l1, ss_ix_l2;
+    ss_ix_l1 << "      [0]:" << (ix[0] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [1]:" << (ix[1] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [2]:" << (ix[2] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [3]:" << (ix[3] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m");
+    ss_ix_l2 << "      [4]:" << (ix[4] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [5]:" << (ix[5] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [6]:" << (ix[6] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [7]:" << (ix[7] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m");
+    right_side[2]  = ss_ix_l1.str();
+    right_side[3]  = ss_ix_l2.str();
+    
+    right_side[4]  = "      Coils / Outputs (%QX0.0 - %QX0.7):";
+    std::stringstream ss_qx_l1, ss_qx_l2;
+    ss_qx_l1 << "      [0]:" << (qx[0] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [1]:" << (qx[1] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [2]:" << (qx[2] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [3]:" << (qx[3] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m");
+    ss_qx_l2 << "      [4]:" << (qx[4] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [5]:" << (qx[5] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [6]:" << (qx[6] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m")
+             << "  [7]:" << (qx[7] ? "\033[1;32m1\033[0m" : "\033[1;30m0\033[0m");
+    right_side[5]  = ss_qx_l1.str();
+    right_side[6]  = ss_qx_l2.str();
+    
+    right_side[7]  = "      Input Registers (%IW0 - %IW3):";
+    std::stringstream ss_iw;
+    ss_iw << "      [0]:\033[1;36m" << iw[0] << "\033[0m"
+          << "  [1]:\033[1;36m" << iw[1] << "\033[0m"
+          << "  [2]:\033[1;36m" << iw[2] << "\033[0m"
+          << "  [3]:\033[1;36m" << iw[3] << "\033[0m";
+    right_side[8]  = ss_iw.str();
+    
+    right_side[9]  = "      Holding Registers (%MW0 - %MW3):";
+    std::stringstream ss_mw;
+    ss_mw << "      [0]:\033[1;35m" << mw[0] << "\033[0m"
+          << "  [1]:\033[1;35m" << mw[1] << "\033[0m"
+          << "  [2]:\033[1;35m" << mw[2] << "\033[0m"
+          << "  [3]:\033[1;35m" << mw[3] << "\033[0m";
+    right_side[10] = ss_mw.str();
+    
+    right_side[11] = "";
+    right_side[12] = "      \033[1;30m+-----------------------+\033[0m";
+    right_side[13] = "";
+
+    // Draw left and right columns side-by-side using space padding for robust alignment
+    for (int i = 0; i < 22; ++i) {
+        if (i < 14) {
+            ss << padString(left_side[i], 48) << right_side[i];
+        } else {
+            ss << left_side[i];
+        }
+        ss << "\n";
+    }
+
+    // Footer Frame
+    ss << "\033[1;36m================================================================================\033[0m\n";
+    ss << " \033[1;33m[INTERACTIVE CONTROLS]\033[0m\n";
+    ss << "  - \033[1;37m[I]\033[0m Toggle Auto Mode Switch (%IX0.0)\n";
+    ss << "  - \033[1;31m[Q]\033[0m Graceful Shutdown and Exit\n";
+    ss << "\033[1;36m================================================================================\033[0m\n";
+
+    std::cout << ss.str() << std::flush;
 }
 
 void PlcTui::drawWaterTankScreen(const PlcScheduler::Stats& stats) {

@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
     PlcLoader plc_loader(plc_memory);
     
     // Determine which library to load, MQTT parameters, protocols filtering & port offset
-    std::string lib_path = "./libmock_logic" LIB_EXTENSION;
+    std::string lib_path = "";
     std::string mqtt_broker = "";
     std::string protocols_str = "modbus,s7,mc,xgt";
     uint16_t port_offset = 0;
@@ -95,7 +95,8 @@ int main(int argc, char* argv[]) {
             std::cout << "Usage:\n";
             std::cout << "  ./vPlc [options/path]\n\n";
             std::cout << "Options:\n";
-            std::cout << "  tank, mock, --tank, --mock          Run the Water Tank Level Control Simulator (Default)\n";
+            std::cout << "  (no simulator option)               Run in pure pass-through mode with no simulation logic (Default)\n";
+            std::cout << "  tank, mock, --tank, --mock          Run the Water Tank Level Control Simulator\n";
             std::cout << "  assembly, car, --assembly, --car    Run the Automotive Assembly Line Simulator\n";
             std::cout << "  trim, final, --trim, --final        Run the Automotive Trim & Final Assembly Line Simulator\n";
             std::cout << "  -m, --mqtt [broker_ip]              Enable MQTT client and publish telemetry to specified broker\n";

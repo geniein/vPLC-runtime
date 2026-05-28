@@ -16,6 +16,11 @@ PlcLoader::~PlcLoader() {
 bool PlcLoader::loadLibrary(const std::string& path) {
     unloadLibrary();
 
+    if (path.empty()) {
+        std::cout << "[PlcLoader] No shared library specified. Running without logic (MANUAL/PASS-THROUGH mode)." << std::endl;
+        return true;
+    }
+
     std::cout << "[PlcLoader] Loading shared library: " << path << std::endl;
 
     // Load dynamic library
