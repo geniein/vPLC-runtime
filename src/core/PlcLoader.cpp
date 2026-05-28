@@ -103,13 +103,9 @@ void PlcLoader::syncInputsToDll() {
             }
         }
         else if (binding.type == VarBinding::Type::HOLDING_REGISTER) {
-            // Sync Speed Set Point (%MW1) from PLC Memory to DLL, but DO NOT overwrite completed cars (%MW0)
-            if (binding.plc_address == 1) {
-                uint16_t val = memory_.readHoldingRegister(binding.plc_address);
-                if (val > 0) {
-                    *static_cast<uint16_t*>(binding.sym_ptr) = val;
-                }
-            }
+            // Sync all holding registers from PLC Memory to DLL to make external controls/parameters effective
+            uint16_t val = memory_.readHoldingRegister(binding.plc_address);
+            *static_cast<uint16_t*>(binding.sym_ptr) = val;
         }
     }
 }
@@ -133,21 +129,14 @@ void PlcLoader::syncOutputsFromDll() {
             memory_.writeCoil(binding.plc_address, val != 0);
         }
         else if (binding.type == VarBinding::Type::INPUT_REGISTER) {
-            // Sync conveyor position (%IW0) physics encoder value from DLL to PLC Memory
+            // Sync all dynamic input register sensor values (e.g. %IW0 position, %IW1 etc.) from DLL to PLC Memory
             uint16_t val = *static_cast<uint16_t*>(binding.sym_ptr);
             memory_.writeInputRegister(binding.plc_address, val);
         }
         else if (binding.type == VarBinding::Type::HOLDING_REGISTER) {
-            // Sync completed cars (%MW0) computed by DLL back to PLC Memory Holding Register
-            if (binding.plc_address == 0) {
-                uint16_t val = *static_cast<uint16_t*>(binding.sym_ptr);
-                memory_.writeHoldingRegister(binding.plc_address, val);
-            }
-            // Sync current speed (%MW1) computed/initialized by DLL back to PLC Memory
-            else if (binding.plc_address == 1) {
-                uint16_t val = *static_cast<uint16_t*>(binding.sym_ptr);
-                memory_.writeHoldingRegister(binding.plc_address, val);
-            }
+            // Sync all holding registers computed or updated by DLL back to PLC Memory
+            uint16_t val = *static_cast<uint16_t*>(binding.sym_ptr);
+            memory_.writeHoldingRegister(binding.plc_address, val);
         }
     }
     memory_.syncMappings();
