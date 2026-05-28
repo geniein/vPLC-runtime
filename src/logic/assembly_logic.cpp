@@ -105,7 +105,7 @@ extern "C" {
             conveyor_pos_sim += speed_per_tick;
             
             // Check if chassis has reached assembly station (500 mm)
-            if ((conveyor_pos_sim >= 500.0 && conveyor_pos_sim < 520.0) || __MW2 == 1) {
+            if (conveyor_pos_sim >= 500.0 && conveyor_pos_sim < 520.0) {
                 conveyor_pos_sim = 500.0; // Stop exactly at station
                 __IX0_1 = 1;              // Chassis Present
             } else {
@@ -161,16 +161,31 @@ extern "C" {
         // --- 2. PLC SEQUENCE CONTROL LOGIC (SFC) ---
         if (__IX0_0 && !e_stop) {
             switch (sfc_state) {
-                case 0: // State 0: Wait for chassis
-                    __QX0_0 = 1; // Run Conveyor
+                case 0: // State 0: Wait for chassis entry trigger
+                    __QX0_0 = 0; // Stop Conveyor initially (Wait for trigger)
                     __QX0_1 = 0; // Lift UP
                     __QX0_2 = 0; // Clamp OFF
                     __QX0_3 = 0; // Rotate LEFT
                     __QX0_4 = 0; // Done Lamp OFF
+                    __IX0_1 = 0; // Reset Chassis Present
                     
-                    if (__IX0_1 && __IX0_2) { // Chassis arrived and part ready
-                        __QX0_0 = 0; // Stop Conveyor
-                        sfc_state = 1; // Move to Pick Lift Down
+                    if (__MW2 == 1) { // External Chassis provision trigger received
+                        __MW2 = 0; // Clear the trigger immediately
+                        conveyor_pos_sim = 0.0; // Reset position to start
+                        __QX0_0 = 1; // Start Conveyor
+                        sfc_state = 8; // Move to dynamic transit conveying state
+                    }
+                    break;
+
+                case 8: // State 8: Conveying Chassis to Assembly Station
+                    __QX0_0 = 1; // Keep running conveyor
+                    if (conveyor_pos_sim >= 500.0) {
+                        conveyor_pos_sim = 500.0;
+                        __IX0_1 = 1; // Chassis Present Sensor Activated
+                        __QX0_0 = 0; // Stop Conveyor exactly at station
+                        if (__IX0_2) { // Part ready at pick station
+                            sfc_state = 1; // Proceed to assembly logic
+                        }
                     }
                     break;
                     
